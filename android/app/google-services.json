@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "890258382242",
+    "project_id": "wedding-invite-56754",
+    "storage_bucket": "wedding-invite-56754.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:890258382242:android:3cc00f3f6bf346e15f66fb",
+        "android_client_info": {
+          "package_name": "com.example.wedding_invite"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "890258382242-tl3qkkhivjft5ba7prs1hfvl5mh5jkfk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgwiqV9JmqOGlRyd6qa12372fPlzxr1ek"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "890258382242-tl3qkkhivjft5ba7prs1hfvl5mh5jkfk.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "890258382242-ha6bdkdgo6u271iutvsr2f1hfnorih82.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.fogtheagency.weddingInvite"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

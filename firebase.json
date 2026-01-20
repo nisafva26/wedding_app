@@ -1,0 +1,44 @@
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "wedding-invite-56754",
+          "appId": "1:890258382242:android:3cc00f3f6bf346e15f66fb",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "wedding-invite-56754",
+          "appId": "1:890258382242:ios:63b76fd98adbc5ea5f66fb",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "wedding-invite-56754",
+          "configurations": {
+            "android": "1:890258382242:android:3cc00f3f6bf346e15f66fb",
+            "ios": "1:890258382242:ios:63b76fd98adbc5ea5f66fb"
+          }
+        }
+      }
+    }
+  }
+}
