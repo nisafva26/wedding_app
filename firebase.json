@@ -18,14 +18,14 @@
       "android": {
         "default": {
           "projectId": "wedding-invite-56754",
-          "appId": "1:890258382242:android:3cc00f3f6bf346e15f66fb",
+          "appId": "1:890258382242:android:f95f9257bdf713cf5f66fb",
           "fileOutput": "android/app/google-services.json"
         }
       },
       "ios": {
         "default": {
           "projectId": "wedding-invite-56754",
-          "appId": "1:890258382242:ios:63b76fd98adbc5ea5f66fb",
+          "appId": "1:890258382242:ios:ba4f0c763538297c5f66fb",
           "uploadDebugSymbols": false,
           "fileOutput": "ios/Runner/GoogleService-Info.plist"
         }
@@ -34,11 +34,27 @@
         "lib/firebase_options.dart": {
           "projectId": "wedding-invite-56754",
           "configurations": {
-            "android": "1:890258382242:android:3cc00f3f6bf346e15f66fb",
-            "ios": "1:890258382242:ios:63b76fd98adbc5ea5f66fb"
+            "android": "1:890258382242:android:f95f9257bdf713cf5f66fb",
+            "ios": "1:890258382242:ios:ba4f0c763538297c5f66fb",
+            "web": "1:890258382242:web:19027909f209e90b5f66fb"
           }
         }
       }
     }
+  },
+  "hosting": {
+    "target": "amongstus",
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
 }

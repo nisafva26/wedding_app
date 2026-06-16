@@ -50,6 +50,7 @@ class LocationSection {
   final String imageUrl;
   final int? distanceKm;
   final String? etaText;
+  final String? locUrl;
 
   const LocationSection({
     required this.title,
@@ -57,6 +58,7 @@ class LocationSection {
     required this.imageUrl,
     this.distanceKm,
     this.etaText,
+    required this.locUrl,
   });
 }
 
@@ -142,6 +144,7 @@ class EventContentRegistry {
         location: const LocationSection(
           title: "-",
           subtitle: "-",
+          locUrl: "https://maps.app.goo.gl/Vdyq5pLKo7mow2K76",
           imageUrl:
               "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1400",
         ),
@@ -230,10 +233,11 @@ class EventContentRegistry {
             "Traditionally, the ladies apply mehendi and yes, you can add a little mehendi for the bride and groom too.",
         location: const LocationSection(
           title: "Levant Park",
+          locUrl: 'https://maps.app.goo.gl/Vdyq5pLKo7mow2K76',
           subtitle:
               "AlRuwayyah 3 - After Dubai Government Workshop. UAE, Dubai",
           imageUrl:
-              "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1400",
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_UNVZhMTIvDgKWmCjatJyESrBtuowkJCiWg&s",
           distanceKm: 21,
           etaText: "1 hr 15 m away",
         ),
@@ -258,7 +262,7 @@ class EventContentRegistry {
         title: "Outfit inspiration",
         headline: "Go bright, comfy, and\nready to move.",
         description:
-            "Totally optional. Wear what feels like you.\n\nThink festive, playful, and photo-ready: bright colors, fun prints, and easy silhouettes that you can actually move in.",
+            "Totally optional. Dress comfortably, in what makes you feel like yourself\n\nThink festive, playful, and photo-ready: bright colors, fun prints, and easy silhouettes that you can actually move in.",
         carouselImageUrls: const [
           "https://s.alicdn.com/@sc04/kf/A98035f6fffd941b5aba5eba4ea09b6c8H/New-Arrivals-Latest-Fashion-Elegant-Wedding-Party-Wear-Dresses-Women-Handmade-Henna-Brides-Indian-Pakistani-Lehenga-Choli.jpg",
           "https://cdn.shopify.com/s/files/1/0575/8851/4992/files/2_2f6e3816-5b6b-42a6-b29f-c28518f46aff.jpg?v=1728640189",
@@ -288,12 +292,12 @@ class EventContentRegistry {
           ),
           EventFlowStep(
             timeRange: "6:00 PM - 7:00 PM",
-            title: "Groom & bride entry +\nMehendi Moments",
+            title: "Groom & bride entry +\nMehendi Ceremony",
             icon: Icons.front_hand_outlined,
           ),
           EventFlowStep(
             timeRange: "7:00 PM - 8:00 PM",
-            title: "Dances\n& games",
+            title: "Dance perfomances",
             icon: Icons.emoji_emotions_outlined,
           ),
           EventFlowStep(
@@ -319,6 +323,7 @@ class EventContentRegistry {
             "The main ceremony - calm, meaningful, and beautiful. Come a little early, settle in, and enjoy the island setting. ",
         location: const LocationSection(
           title: "Noor Island",
+          locUrl: 'https://maps.app.goo.gl/Mm4zaqRvrENE2X7d9',
           subtitle:
               "Buhairah Corniche Road, Khalid Lagoon - Sharjah, United Arab Emirates",
           imageUrl:
@@ -377,29 +382,34 @@ class EventContentRegistry {
         title: "Event flow",
         steps: const [
           EventFlowStep(
-            timeRange: "5:00 PM - 6:00 PM",
-            title: "Guest Arrival +\nSnacks & chai",
+            timeRange: "3:00 PM – 3:45 PM",
+            title: "Guest arrivals +\nrefreshments",
             icon: Icons.local_cafe_outlined,
           ),
           EventFlowStep(
-            timeRange: "6:00 PM - 7:00 PM",
-            title: "Groom & bride entry +\nMehendi Moments",
-            icon: Icons.front_hand_outlined,
+            timeRange: "3:45 PM – 4:15 PM",
+            title: "Move to Nikkah area +\nsettle in",
+            icon: Icons.chair_outlined,
           ),
           EventFlowStep(
-            timeRange: "7:00 PM - 8:00 PM",
-            title: "Dances\n& games",
+            timeRange: "4:15 PM – 4:30 PM",
+            title: "Groom &\nbride arrival",
             icon: Icons.emoji_emotions_outlined,
           ),
           EventFlowStep(
-            timeRange: "8:00 PM - 9:00 PM",
-            title: "Dinner",
-            icon: Icons.restaurant_outlined,
+            timeRange: "4:30 PM – 5:30 PM",
+            title: "Nikkah\nceremony",
+            icon: Icons.menu_book_outlined,
           ),
           EventFlowStep(
-            timeRange: "9:00 PM onwards",
-            title: "DJ + dancing",
-            icon: Icons.music_note_outlined,
+            timeRange: "5:30 PM – 6:00 PM",
+            title: "Cake cutting + Move back to\nmain area",
+            icon: Icons.cake_outlined,
+          ),
+          EventFlowStep(
+            timeRange: "6:00 PM – 8:30 PM",
+            title: "Dinner &\ngathering",
+            icon: Icons.restaurant_outlined,
           ),
         ],
       ),
@@ -409,11 +419,15 @@ class EventContentRegistry {
   static EventDetailsContent _reception() {
     return EventDetailsContent(
       details: EventDetailsSection(
-        headline: "This is the\n party night",
+        headline: "The Finale",
         description:
-            "Polished, lively, and full celebration mode. Come ready for photos, good food, and a proper dance floor later.",
+            'The final chapter of our wedding celebrations; an evening filled with good food, joyful moments, and plenty of reasons to celebrate together',
+        // description:
+        //     "Polished, lively, and full celebration mode. Come ready for photos, good food, and a proper dance floor later.",
+        // description: '',
         location: const LocationSection(
           title: "Hyatt Regency Dubai",
+          locUrl: 'https://maps.app.goo.gl/5bLnNBbzhEzKafiP8',
           subtitle: "Al Khaleej St - Al Corniche -\nDeira - Dubai",
           imageUrl:
               "https://images.destination2.co.uk/Hotels/giata/485037/Hyatt%20Regency%20Dubai%20_%20The%20Galleria%20Residence_1.jpg",
@@ -431,8 +445,12 @@ class EventContentRegistry {
           icon: Icons.wb_sunny_outlined,
         ),
         amenities: const [
-          AmenityItem(icon: Icons.local_parking, text: "Parking"),
+          // AmenityItem(icon: Icons.local_parking, text: "Parking"),
           AmenityItem(icon: Icons.mosque, text: "Prayer area"),
+          AmenityItem(
+            icon: Icons.local_parking_outlined,
+            text: 'Complimentary Valet Parking\n(Crystal Ballroom)',
+          ),
         ],
       ),
       outfit: OutfitInspirationSection(
@@ -488,7 +506,7 @@ class EventContentRegistry {
             icon: Icons.restaurant_outlined,
           ),
           EventFlowStep(
-            timeRange: "6:00 PM - 8:30 PM",
+            timeRange: "9:30 PM onwards",
             title: "Dancing, entertainment\n& celebration",
             icon: Icons.music_note_outlined,
           ),

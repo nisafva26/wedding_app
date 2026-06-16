@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wedding_invite/version_1/gifts/widgets/double_moving_cards.dart';
 import 'package:wedding_invite/version_1/gifts/widgets/insight_contribution_card.dart';
@@ -67,14 +68,18 @@ class _GiftScreenState extends State<GiftScreen> {
                     amplitude: 18,
                   ),
                   child: Container(
-                    height: 300,
+                    height: 305,
                     color: Color(0xff045622),
                     width: MediaQuery.sizeOf(context).width,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         SizedBox(height: 16),
-                        Icon(Icons.present_to_all, color: Colors.white),
+                        Lottie.asset(
+                          'assets/images/gift.json',
+                          height: 58,
+                          width: 58,
+                        ),
                         SizedBox(height: 5),
                         Text(
                           'Gift Fund',
@@ -188,37 +193,45 @@ class _GiftScreenState extends State<GiftScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 26),
                           child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text.rich(
-                                TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: 'We’re using YOUGotaGift\n',
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 24,
-                                        fontFamily: 'SFPRO',
-                                        fontWeight: FontWeight.w500,
+                              Expanded(
+                                child: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: 'We’re using YOUGotaGift\n',
+                                        style: TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 24,
+                                          fontFamily: 'SFPRO',
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
-                                    ),
-                                    TextSpan(
-                                      text: 'a simple way to gift digitally.',
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 14,
-                                        fontFamily: 'SFPRO',
-                                        fontWeight: FontWeight.w500,
-                                        height: 1.71,
+                                      TextSpan(
+                                        text: 'a simple way to gift digitally.',
+                                        style: TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 14,
+                                          fontFamily: 'SFPRO',
+                                          fontWeight: FontWeight.w500,
+                                          height: 1.71,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                              Spacer(),
-                              Image.asset('assets/images/you_got_gift.png'),
+                              const SizedBox(width: 12),
+                              Image.asset(
+                                'assets/images/you_got_gift.png',
+                                width: 64, // 👈 force size
+                                fit: BoxFit.contain,
+                              ),
                             ],
                           ),
                         ),
+
                         SizedBox(height: 30),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 26),
@@ -266,7 +279,8 @@ class _GiftScreenState extends State<GiftScreen> {
                               ),
                               InsightContributionCard(
                                 title: "Gift",
-                                description: "We'll choose from our registry.",
+                                description:
+                                    "We’ll choose gift cards from 100+ brands.",
 
                                 // Dark green theme
                                 icon: SvgPicture.asset(
@@ -280,18 +294,34 @@ class _GiftScreenState extends State<GiftScreen> {
                         SizedBox(height: 50),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 26),
-                          child: Text(
-                            'Popular gift cards',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 16,
-                              fontFamily: 'SFPRO',
-                              fontWeight: FontWeight.w500,
-                              height: 1.50,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Popular gift cards',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontFamily: 'SFPRO',
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.50,
+                                ),
+                              ),
+                              SizedBox(height: 5,),
+                              Text(
+                                'We’ll use the fund to pick gift cards from these popular brands (or any of 100+ brands).',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 14,
+                                  fontFamily: 'SFPRO',
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.57,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        SizedBox(height: 22),
+                        SizedBox(height: 42),
                         SlowMovingGiftCardsDoubleRow(),
                         SizedBox(height: 300),
                       ],

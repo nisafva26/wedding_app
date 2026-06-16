@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wedding_invite/version_1/gifts/widgets/aani_card.dart';
 import 'package:wedding_invite/version_1/gifts/widgets/bank_details_card.dart';
@@ -54,14 +55,18 @@ class _CashGiftScreenState extends State<CashGiftScreen>
                     amplitude: 18,
                   ),
                   child: Container(
-                    height: 300,
+                    height: 305,
                     color: Color(0xff771549),
                     width: MediaQuery.sizeOf(context).width,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         SizedBox(height: 16),
-                        Icon(Icons.present_to_all, color: Colors.white),
+                        Lottie.asset(
+                          'assets/images/cash.json',
+                          height: 58,
+                          width: 58,
+                        ),
                         SizedBox(height: 5),
                         Text(
                           'Cash Gift',
@@ -250,6 +255,8 @@ class _CashGiftScreenState extends State<CashGiftScreen>
 
                               _tab == 0
                                   ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'If bank transfer is easiest, add us as a beneficiary and send a cash gift anytime. \n\nIt will be received in our shared account.',
@@ -274,6 +281,8 @@ class _CashGiftScreenState extends State<CashGiftScreen>
                                       ],
                                     )
                                   : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text.rich(
                                           TextSpan(

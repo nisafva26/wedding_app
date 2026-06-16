@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:wedding_invite/version_1/events/data/event_details_modal.dart';
 
 class EventFlowSectionUI extends StatelessWidget {
@@ -14,23 +15,23 @@ class EventFlowSectionUI extends StatelessWidget {
       children: [
         Text(
           data.title, // "Event flow"
-          style: const TextStyle(
-            fontSize: 20,
+          style:  TextStyle(
+            fontSize: 20.sp,
             fontFamily: 'SFPRO',
             fontWeight: FontWeight.w500,
             color: Colors.black,
           ),
         ),
-        const SizedBox(height: 14),
+         SizedBox(height: 14.h),
 
         // Stack so we can draw the dotted line behind the cards
         Stack(
           children: [
             // Dotted vertical connector line
             Positioned(
-              left: 22, // aligns with card padding visually
-              top: 18,
-              bottom: 18,
+              left: 22.w, // aligns with card padding visually
+              top: 18.w,
+              bottom: 18.w,
               child: _DottedLine(
                 color: color, // soft pink dots
                 dotRadius: 2,
@@ -65,7 +66,7 @@ class _EventFlowCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(19, 21, 19, 23),
+      padding:  EdgeInsets.fromLTRB(19.w, 21.w, 19.w, 23.w),
       decoration: BoxDecoration(
         color: color, // light pink
         borderRadius: BorderRadius.circular(14),
@@ -80,18 +81,18 @@ class _EventFlowCard extends StatelessWidget {
               children: [
                 Text(
                   step.timeRange,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style:  TextStyle(
+                    fontSize: 14.sp,
                     fontFamily: 'SFPRO',
                     fontWeight: FontWeight.w500,
                     color: Colors.black,
                   ),
                 ),
-                const SizedBox(height: 37),
+                 SizedBox(height: 37.h),
                 Text(
                   step.title,
-                  style: const TextStyle(
-                    fontSize: 20,
+                  style:  TextStyle(
+                    fontSize: 20.sp,
                     // height: 1.15,
                     fontFamily: 'SFPRO',
                     fontWeight: FontWeight.w500,
@@ -102,12 +103,12 @@ class _EventFlowCard extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: 12),
+           SizedBox(width: 12.w),
 
           // right icon
           Icon(
             step.icon,
-            size: 30,
+            size: 30.h,
             color: const Color(0xFF111111),
           ),
         ],

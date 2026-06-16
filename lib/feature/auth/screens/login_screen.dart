@@ -1,19 +1,20 @@
 // lib/screens/auth/login_screen.dart
 import 'dart:developer';
+import 'dart:ui';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
+import 'package:loading_indicator/loading_indicator.dart';
 import 'package:pinput/pinput.dart';
 import 'package:wedding_invite/feature/auth/controller/auth_notifier.dart';
-import 'package:wedding_invite/feature/auth/widgets/continue_button.dart';
-import 'package:wedding_invite/feature/auth/widgets/country_selection_sheet.dart';
-import 'package:wedding_invite/feature/auth/widgets/skip_login_modal.dart';
+import 'package:wedding_invite/router/router_provider.dart';
 
 // Placeholder for the modal
 const Color _maroonColor = Color(0xFF801540);
@@ -82,22 +83,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _setDefaultCountryFromLocale() {
     if (selectedCountry == null) {
-      final locale = PlatformDispatcher.instance.locale;
-      final countryCode = locale.countryCode;
-
+      // We ignore the device locale entirely to prevent UK/IN misdetection
       final defaultCountry = CountryService().getAll().firstWhere(
-        (c) =>
-            c.countryCode.toUpperCase() == (countryCode?.toUpperCase() ?? 'IN'),
+        (c) => c.countryCode.toUpperCase() == 'AE',
         orElse: () => Country(
-          phoneCode: '91',
-          countryCode: 'IN',
+          phoneCode: '971',
+          countryCode: 'AE',
           e164Sc: 0,
           geographic: true,
           level: 1,
-          name: 'India',
-          example: '9876543210',
-          displayName: 'India',
-          displayNameNoCountryCode: 'India',
+          name: 'United Arab Emirates',
+          example: '501234567',
+          displayName: 'United Arab Emirates',
+          displayNameNoCountryCode: 'United Arab Emirates',
           e164Key: '',
         ),
       );
@@ -105,10 +103,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() {
         selectedCountry = defaultCountry;
         countryPhoneCode = defaultCountry.phoneCode;
+        // This ensures the UI allows exactly 9 digits for UAE mobile numbers
         countryPhoneLength = defaultCountry.example.length;
       });
     }
   }
+
+  // void _setDefaultCountryFromLocale() {
+  //   if (selectedCountry == null) {
+  //     final locale = PlatformDispatcher.instance.locale;
+  //     final countryCode = locale.countryCode;
+
+  //     final defaultCountry = CountryService().getAll().firstWhere(
+  //       (c) =>
+  //           c.countryCode.toUpperCase() == (countryCode?.toUpperCase() ?? 'IN'),
+  //       orElse: () => Country(
+  //         phoneCode: '91',
+  //         countryCode: 'IN',
+  //         e164Sc: 0,
+  //         geographic: true,
+  //         level: 1,
+  //         name: 'India',
+  //         example: '9876543210',
+  //         displayName: 'India',
+  //         displayNameNoCountryCode: 'India',
+  //         e164Key: '',
+  //       ),
+  //     );
+
+  //     setState(() {
+  //       selectedCountry = defaultCountry;
+  //       countryPhoneCode = defaultCountry.phoneCode;
+  //       countryPhoneLength = defaultCountry.example.length;
+  //     });
+  //   }
+  // }
 
   @override
   void didChangeDependencies() {
@@ -166,22 +195,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                   // horizontal: 20,
                   vertical: 0,
-                ).copyWith(top: 60),
+                ).copyWith(top: 60.h),
                 child: Column(
                   children: [
                     Stack(
                       alignment: Alignment.center,
                       children: [
                         Image.asset(
-                          'assets/images/Vector.png',
-                          width: MediaQuery.sizeOf(context).width,
-                          // fit: BoxFit.fitHeight,
+                              'assets/images/pattern_vector.png',
+                              width: MediaQuery.sizeOf(context).width,
+                              // height: MediaQuery.sizeOf(context).height/1.2,
+                              // fit: BoxFit.fitWidth,
 
-                          // height: MediaQuery.sizeOf(context).height*.7,
-                        ),
+                              // height: MediaQuery.sizeOf(context).height*.7,
+                            )
+                            .animate()
+                            .fadeIn(
+                              duration: 500.ms,
+                              curve: Curves.easeOutCubic,
+                            )
+                            .slideY(
+                              begin: 0.25, // comes from bottom
+                              end: 0,
+                              duration: 600.ms,
+                              curve: Curves.easeOutCubic,
+                            ),
                         IntrinsicHeight(
                           child: AnimatedSwitcher(
                             duration: const Duration(milliseconds: 500),
@@ -202,43 +243,184 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ],
                     ),
 
-                    SizedBox(height: 30),
+                    SizedBox(height: 20.h),
 
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 58,
-                        child: ElevatedButton(
-                          onPressed:
-                              (authState == AuthState.sendingOtp ||
-                                  authState == AuthState.verifying)
-                              ? null
-                              : _onContinuePressed,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _maroonColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            elevation: 0,
-                          ),
-                          child:
-                              (authState == AuthState.sendingOtp ||
-                                  authState == AuthState.verifying)
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : const Text(
-                                  "Confirm",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
+                          padding: EdgeInsets.symmetric(horizontal: 20.w),
+                          child: Column(
+                            children: [
+                              SizedBox(
+                                width: double.infinity,
+                                height: 58.w,
+                                child: ElevatedButton(
+                                  onPressed:
+                                      (authState == AuthState.sendingOtp ||
+                                          authState == AuthState.verifying)
+                                      ? null
+                                      : _onContinuePressed,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _maroonColor,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child:
+                                      (authState == AuthState.sendingOtp ||
+                                          authState == AuthState.verifying)
+                                      ? const SizedBox(
+                                          width: 50,
+                                          child: LoadingIndicator(
+                                            indicatorType: Indicator
+                                                .ballScaleMultiple, // Soft pulsing circles
+                                            colors: [
+                                              const Color(
+                                                0xFF06471D,
+                                              ), // Your deep green
+                                              const Color(
+                                                0xFF8B2B57,
+                                              ), // Your badge pink
+                                            ],
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Text(
+                                          "Confirm",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18.sp,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              SizedBox(height: 10.h),
+
+                              SizedBox(
+                                width: double.infinity,
+                                height: 58,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(30),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 10,
+                                      sigmaY: 10,
+                                    ), // The blur intensity
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(30),
+                                        // White with low opacity (0.1 to 0.2) creates the glass look
+                                        color: Colors.white.withOpacity(0.15),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(
+                                            0.3,
+                                          ), // Soft white border
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: OutlinedButton(
+                                        onPressed: () {
+                                          ref
+                                                  .read(
+                                                    isGuestProvider.notifier,
+                                                  )
+                                                  .state =
+                                              true;
+                                          context.go('/home');
+                                        },
+                                        style: OutlinedButton.styleFrom(
+                                          // Remove standard border/side since we defined it in the Container
+                                          side: BorderSide.none,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              30,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: const [
+                                            Text(
+                                              "Skip login",
+                                              style: TextStyle(
+                                                color: Colors
+                                                    .white, // White text for contrast
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                            SizedBox(width: 8),
+                                            Icon(
+                                              Icons.arrow_forward_ios,
+                                              color: Colors.white,
+                                              size: 14,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
+                              ),
+
+                              // --- THE UPDATED SKIP BUTTON ---
+                              // SizedBox(
+                              //   width: double.infinity,
+                              //   height: 58,
+                              //   child: OutlinedButton(
+                              //     onPressed: () {
+                              //       ref.read(isGuestProvider.notifier).state =
+                              //           true;
+
+                              //       context.go('/home');
+                              //     },
+                              //     style: OutlinedButton.styleFrom(
+                              //       side: const BorderSide(
+                              //         color: Colors.white54,
+                              //         width: 1.5,
+                              //       ),
+                              //       shape: RoundedRectangleBorder(
+                              //         borderRadius: BorderRadius.circular(30),
+                              //       ),
+                              //     ),
+                              //     child: Row(
+                              //       mainAxisAlignment: MainAxisAlignment.center,
+                              //       children: const [
+                              //         Text(
+                              //           "Skip login",
+                              //           style: TextStyle(
+                              //             color: _maroonColor,
+                              //             fontSize: 16,
+                              //             fontWeight: FontWeight.w500,
+                              //           ),
+                              //         ),
+                              //         SizedBox(width: 8),
+                              //         Icon(
+                              //           Icons.arrow_forward_ios,
+                              //           color: Colors.white,
+                              //           size: 14,
+                              //         ),
+                              //       ],
+                              //     ),
+                              //   ),
+                              // ),
+                            ],
+                          ),
+                        )
+                        .animate()
+                        .fadeIn(
+                          duration: 500.ms,
+                          curve: Curves.easeOutCubic,
+                          delay: Duration(milliseconds: 800),
+                        )
+                        .slideY(
+                          begin: 0.25, // comes from bottom
+                          end: 0,
+                          duration: 600.ms,
+                          curve: Curves.easeOutCubic,
                         ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -252,164 +434,189 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // --- Phone UI Content ---
   Widget _buildPhoneContent() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.symmetric(horizontal: 20.w),
       child: Column(
         key: const ValueKey("PhoneView"),
         children: [
-          const Text(
-            "Let's get you in",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 40,
-              fontFamily: 'Montage',
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            "Pop in your phone number to unlock your wedding info.",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w400,
-              fontSize: 20,
-              height: 1.4,
-              fontFamily: 'SFPRO',
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Icon(
-            Icons.more_horiz,
+          Text(
+                "Let's get you in",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 35.sp,
+                  fontFamily: 'Montage',
+                ),
+              )
+              .animate()
+              .fadeIn(
+                duration: 500.ms,
+                curve: Curves.easeOutCubic,
+                delay: Duration(milliseconds: 600),
+              )
+              .slideY(
+                begin: 0.25, // comes from bottom
+                end: 0,
+                duration: 600.ms,
+                curve: Curves.easeOutCubic,
+              ),
+          SizedBox(height: 12.h),
+          Text(
+                "Pop in your phone number to unlock your wedding info.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w400,
+                  fontSize: 18.sp,
+                  // height: 1.4,
+                  fontFamily: 'SFPRO',
+                ),
+              )
+              .animate()
+              .fadeIn(
+                duration: 500.ms,
+                curve: Curves.easeOutCubic,
+                delay: Duration(milliseconds: 800),
+              )
+              .slideY(
+                begin: 0.25, // comes from bottom
+                end: 0,
+                duration: 600.ms,
+                curve: Curves.easeOutCubic,
+              ),
+          SizedBox(height: 20.h),
+          SvgPicture.asset(
+            'assets/images/onboarding_vector_1.svg',
             color: Colors.white,
-            size: 40,
           ), // Or your divider image
-          const SizedBox(height: 20),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "Mobile number",
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // TextField(
-          //   controller: phoneController,
-          //   keyboardType: TextInputType.phone,
-          //   style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-          //   decoration: InputDecoration(
-          //     filled: true,
-          //     fillColor: Colors.white,
-          //     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-          //     border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
-          //   ),
-          // ),
-          Row(
-            children: [
-              // Country Picker Box
-              GestureDetector(
-                onTap: () async {
-                  //   final selected = await showModalBottomSheet<Country>(
-                  //     context: context,
-                  //     isScrollControlled: true,
-                  //     builder: (_) => Padding(
-                  //       padding: EdgeInsets.only(
-                  //         bottom: MediaQuery.of(context).viewInsets.bottom,
-                  //       ),
-                  //       child: CountrySelectorSheet(selected: selectedCountry),
-                  //     ),
-                  //   );
-
-                  //   if (selected != null) {
-                  //     setState(() {
-                  //       selectedCountry = selected;
-                  //       countryPhoneLength = selected.example.length;
-                  //       countryPhoneCode = selected.phoneCode;
-                  //     });
-                  //   }
-                  showCountryPicker(
-                    context: context,
-                    showPhoneCode: true,
-                    onSelect: (selected) {
-                      setState(() {
-                        selectedCountry = selected;
-                        countryPhoneLength = selected.example.length;
-                        countryPhoneCode = selected.phoneCode;
-                      });
-                    },
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: _primaryRose.withOpacity(.6)),
-                    borderRadius: BorderRadius.circular(12),
+          SizedBox(height: 20.h),
+          Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Mobile number",
+                  style: TextStyle(
                     color: Colors.white,
+                    fontSize: 14.h,
+                    fontFamily: "Inter",
                   ),
-                  child: Row(
-                    children: [
-                      Text(
-                        selectedCountry!.flagEmoji,
-                        style: const TextStyle(fontSize: 18),
+                ),
+              )
+              .animate()
+              .fadeIn(
+                duration: 500.ms,
+                curve: Curves.easeOutCubic,
+                delay: Duration(milliseconds: 900),
+              )
+              .slideY(
+                begin: 0.25, // comes from bottom
+                end: 0,
+                duration: 600.ms,
+                curve: Curves.easeOutCubic,
+              ),
+          SizedBox(height: 8.h),
+
+          Row(
+                children: [
+                  // Country Picker Box
+                  GestureDetector(
+                    onTap: () async {
+                      showCountryPicker(
+                        context: context,
+                        showPhoneCode: true,
+                        onSelect: (selected) {
+                          log('selected : $selected');
+                          setState(() {
+                            selectedCountry = selected;
+                            countryPhoneLength = selected.example.length;
+                            countryPhoneCode = selected.phoneCode;
+                          });
+                        },
+                      );
+                    },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 14.w,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '+${selectedCountry!.phoneCode}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: _darkAccent,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: _primaryRose.withOpacity(.6)),
+                        borderRadius: BorderRadius.circular(100),
+                        color: Colors.white,
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            selectedCountry!.flagEmoji,
+                            style: TextStyle(fontSize: 18.sp),
+                          ),
+                          SizedBox(width: 6.w),
+                          Text(
+                            '+${selectedCountry!.phoneCode}',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              color: _darkAccent,
+                            ),
+                          ),
+                          SizedBox(width: 4.w),
+                          const Icon(Icons.arrow_drop_down, color: _darkAccent),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  // Phone Number Input
+                  Expanded(
+                    child: TextField(
+                      controller: phoneController,
+                      // focusNode: phoneFocusNode,
+                      // keyboardType: TextInputType.none,
+                      style: const TextStyle(color: _darkAccent),
+                      decoration: InputDecoration(
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(100),
                         ),
+                        labelStyle: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(100),
+                          borderSide: BorderSide(
+                            color: _primaryRose.withOpacity(.6),
+                            width: 1.5,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(100),
+                          borderSide: const BorderSide(
+                            color: _primaryRose,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          vertical: 13.w,
+                          horizontal: 16.w,
+                        ),
+                        hintText: selectedCountry!.example,
+                        hintStyle: TextStyle(color: Colors.grey[400]),
                       ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.arrow_drop_down, color: _darkAccent),
-                    ],
+                    ),
                   ),
-                ),
+                ],
+              )
+              .animate()
+              .fadeIn(
+                duration: 500.ms,
+                curve: Curves.easeOutCubic,
+                delay: Duration(milliseconds: 900),
+              )
+              .slideY(
+                begin: 0.25, // comes from bottom
+                end: 0,
+                duration: 600.ms,
+                curve: Curves.easeOutCubic,
               ),
-              const SizedBox(width: 12),
-              // Phone Number Input
-              Expanded(
-                child: TextField(
-                  
-                  controller: phoneController,
-                  // focusNode: phoneFocusNode,
-                  // keyboardType: TextInputType.none,
-                  style: const TextStyle(color: _darkAccent),
-                  decoration: InputDecoration(
-                    fillColor: Colors.white,
-                    labelStyle: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: _primaryRose.withOpacity(.6),
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: _primaryRose,
-                        width: 2,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 13,
-                      horizontal: 16,
-                    ),
-                    hintText: selectedCountry!.example,
-                    hintStyle: TextStyle(color: Colors.grey[400]),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -420,12 +627,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       key: const ValueKey("OtpView"),
       children: [
-        const Text(
+        Text(
           "Verify OTP",
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white,
-            fontSize: 40,
+            fontSize: 40.sp,
             fontFamily: 'Montage',
           ),
         ),
@@ -435,20 +642,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white.withOpacity(0.9),
-            fontSize: 15,
+            fontSize: 15.sp,
             fontFamily: 'SFPRO',
           ),
         ),
-        const SizedBox(height: 30),
+        SizedBox(height: 30.sp),
         Pinput(
           length: 6,
           controller: otpController,
           keyboardType: TextInputType.number,
           defaultPinTheme: PinTheme(
-            width: 50,
-            height: 50,
-            textStyle: const TextStyle(
-              fontSize: 20,
+            width: 50.w,
+            height: 50.w,
+            textStyle: TextStyle(
+              fontSize: 20.sp,
               color: Colors.black,
               fontWeight: FontWeight.bold,
             ),
@@ -474,336 +681,5 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       ],
     );
-  }
-
-  Widget buildPhoneNumberInput(AuthState authState) {
-    if (selectedCountry == null) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      ); // Defensive check
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 70),
-        Text(
-          "Enter your\nmobile number",
-          style: TextStyle(
-            fontSize: 40,
-            fontWeight: FontWeight.w700,
-            color: _darkAccent,
-            height: 50 / 40,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          "Please enter your phone number then we will send OTP to verify you.",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
-            color: _darkAccent.withOpacity(0.7),
-          ),
-        ),
-        const SizedBox(height: 30),
-
-        /// Input row
-        Row(
-          children: [
-            // Country Picker Box
-            GestureDetector(
-              onTap: () async {
-                final selected = await showModalBottomSheet<Country>(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (_) => Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom,
-                    ),
-                    child: CountrySelectorSheet(selected: selectedCountry),
-                  ),
-                );
-
-                if (selected != null) {
-                  setState(() {
-                    selectedCountry = selected;
-                    countryPhoneLength = selected.example.length;
-                    countryPhoneCode = selected.phoneCode;
-                  });
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(color: _primaryRose.withOpacity(.6)),
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.white,
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      selectedCountry!.flagEmoji,
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '+${selectedCountry!.phoneCode}',
-                      style: const TextStyle(fontSize: 16, color: _darkAccent),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.arrow_drop_down, color: _darkAccent),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Phone Number Input
-            Expanded(
-              child: TextField(
-                controller: phoneController,
-                focusNode: phoneFocusNode,
-                keyboardType: TextInputType.none,
-                style: const TextStyle(color: _darkAccent),
-                decoration: InputDecoration(
-                  labelStyle: TextStyle(
-                    color: _darkAccent.withOpacity(0.7),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: _primaryRose.withOpacity(.6),
-                      width: 1.5,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: _primaryRose, width: 2),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 13,
-                    horizontal: 16,
-                  ),
-                  hintText: selectedCountry!.example,
-                  hintStyle: TextStyle(color: Colors.grey[400]),
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 43),
-        ContinueButtonWithLoading(
-          isLoading: authState == AuthState.sendingOtp,
-          onPressed: _onContinuePressed,
-        ),
-        const SizedBox(height: 20),
-        TextButton(
-          onPressed: () {
-            showGuestGateSheet(context, ref);
-          },
-          child: const Text(
-            'Continue without login',
-            style: TextStyle(color: _primaryRose),
-          ),
-        ),
-        const SizedBox(height: 20),
-      ],
-    );
-  }
-
-  Widget buildOTPInput() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 70),
-        Text(
-          "Enter your\npasscode",
-          style: TextStyle(
-            fontSize: 40,
-            fontWeight: FontWeight.w700,
-            color: _darkAccent,
-            height: 50 / 40,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          "Check your SMS inbox, we have sent the code at \n+$countryPhoneCode${phoneController.text}",
-          style: TextStyle(fontSize: 16, color: _darkAccent.withOpacity(0.7)),
-        ),
-        const SizedBox(height: 20),
-        SizedBox(
-          width: MediaQuery.of(context).size.width,
-          child: Pinput(
-            length: 6,
-            autofocus: true,
-            controller: otpController,
-            focusNode: otpFocusNode,
-            keyboardType: TextInputType.none,
-            defaultPinTheme: PinTheme(
-              height: 64,
-              textStyle: const TextStyle(
-                fontSize: 40,
-                color: _darkAccent,
-                fontWeight: FontWeight.w500,
-              ),
-              decoration: BoxDecoration(
-                color: _background.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _primaryRose.withOpacity(0.5)),
-              ),
-            ),
-            focusedPinTheme: PinTheme(
-              height: 64,
-              textStyle: const TextStyle(
-                fontSize: 40,
-                color: _darkAccent,
-                fontWeight: FontWeight.w500,
-              ),
-              decoration: BoxDecoration(
-                color: _background.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _primaryRose, width: 2),
-              ),
-            ),
-            submittedPinTheme: PinTheme(
-              height: 64,
-              textStyle: const TextStyle(
-                fontSize: 40,
-                color: _darkAccent,
-                fontWeight: FontWeight.w500,
-              ),
-              decoration: BoxDecoration(
-                color: _background.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _primaryRose.withOpacity(0.5)),
-              ),
-            ),
-            onCompleted: (value) {
-              _onContinuePressed();
-            },
-          ),
-        ),
-        const SizedBox(height: 40),
-        Row(
-          children: [
-            TextButton(
-              onPressed: () {},
-              child: Text(
-                "Did not receive code?",
-                style: TextStyle(fontSize: 14, color: _darkAccent),
-              ),
-            ),
-            const Spacer(),
-            TextButton(
-              onPressed: () {},
-              child: const Text(
-                "Resend Code",
-                style: TextStyle(
-                  fontSize: 14,
-                  color: _primaryRose,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget buildCustomNumberPad() {
-    List<String> keys = [
-      "1",
-      "2",
-      "3",
-      "4",
-      "5",
-      "6",
-      "7",
-      "8",
-      "9",
-      ".",
-      "0",
-      "⌫",
-    ];
-    final authState = ref.watch(authProvider);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15).copyWith(top: 0),
-      child: GridView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8).copyWith(bottom: 18),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          mainAxisSpacing: 4,
-          crossAxisSpacing: 4,
-          childAspectRatio: 150 / 78,
-        ),
-        itemCount: keys.length,
-        itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () => _onKeyPressed(keys[index], authState),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: _primaryRose.withOpacity(0.1),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                keys[index],
-                style: const TextStyle(
-                  fontSize: 24,
-                  color: _darkAccent,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _onKeyPressed(String value, AuthState authState) {
-    SystemSound.play(SystemSoundType.click);
-
-    setState(() {
-      if (authState == AuthState.idle ||
-          authState == AuthState.sendingOtp ||
-          authState == AuthState.error) {
-        // User is entering phone number
-        if (value == "⌫") {
-          if (phoneController.text.isNotEmpty) {
-            phoneController.text = phoneController.text.substring(
-              0,
-              phoneController.text.length - 1,
-            );
-          }
-        } else if (value != '.' &&
-            phoneController.text.length < countryPhoneLength) {
-          // Restrict length and prevent '.'
-          phoneController.text += value;
-        }
-      } else if (authState == AuthState.otpSent) {
-        // User is entering OTP
-        if (value == "⌫") {
-          if (otpController.text.isNotEmpty) {
-            otpController.text = otpController.text.substring(
-              0,
-              otpController.text.length - 1,
-            );
-          }
-        } else if (value != '.' && otpController.text.length < 6) {
-          // Restrict length and prevent '.'
-          otpController.text += value;
-        }
-      }
-    });
   }
 }

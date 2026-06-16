@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -101,32 +102,37 @@ class _EventOutfitGalleryState extends State<EventOutfitGallery> {
                                 child: Stack(
                                   children: [
                                     Positioned.fill(
-                                      child: Image.network(
-                                        widget.images[index],
-                                        fit: BoxFit.cover,
-                                      ),
+                                      child: kIsWeb
+                                          ? Image.asset(
+                                              widget.images[index],
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Image.network(
+                                              widget.images[index],
+                                              fit: BoxFit.cover,
+                                            ),
                                     ),
                                     // The download button seen in the screenshot
-                                    Positioned(
-                                      bottom: 20,
-                                      right: 20,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.3),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.file_download_outlined,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
+                                    // Positioned(
+                                    //   bottom: 20,
+                                    //   right: 20,
+                                    //   child: Container(
+                                    //     padding: const EdgeInsets.all(8),
+                                    //     decoration: BoxDecoration(
+                                    //       color: Colors.black.withOpacity(0.3),
+                                    //       shape: BoxShape.circle,
+                                    //       border: Border.all(
+                                    //         color: Colors.white,
+                                    //         width: 1,
+                                    //       ),
+                                    //     ),
+                                    //     child: const Icon(
+                                    //       Icons.file_download_outlined,
+                                    //       color: Colors.white,
+                                    //       size: 20,
+                                    //     ),
+                                    //   ),
+                                    // ),
                                   ],
                                 ),
                               ),

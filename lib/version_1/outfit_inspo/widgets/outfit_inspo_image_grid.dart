@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
@@ -16,7 +17,6 @@ class OutfitInspirationMasonryGrid extends StatelessWidget {
   final double gap;
   final double radius;
   final Function(int index)? onImageTap;
-  
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +41,17 @@ class OutfitInspirationMasonryGrid extends StatelessWidget {
             child: _InspoTile(
               radius: radius,
               height: h,
-              child: Image.network(
-                images[index],
-                fit: BoxFit.cover,
-              ),
+              child: kIsWeb
+                  ? Image.asset(
+                      images[index],
+                      width: MediaQuery.sizeOf(context).width,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.network(
+                      images[index],
+                      width: MediaQuery.sizeOf(context).width,
+                      fit: BoxFit.cover,
+                    ),
             ),
           ),
         );
@@ -57,12 +64,18 @@ class OutfitInspirationMasonryGrid extends StatelessWidget {
     const b = 210.0;
     const c = 260.0;
     switch (i % 6) {
-      case 0: return a;
-      case 1: return b;
-      case 2: return a;
-      case 3: return a;
-      case 4: return b;
-      default: return c;
+      case 0:
+        return a;
+      case 1:
+        return b;
+      case 2:
+        return a;
+      case 3:
+        return a;
+      case 4:
+        return b;
+      default:
+        return c;
     }
   }
 }
@@ -93,7 +106,68 @@ class _InspoTile extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: child,
+      child: Stack(
+        children: [
+          child,
+
+          // 👁️ Eye icon overlay
+          Positioned(
+            right: 12,
+            bottom: 12,
+            child: Container(
+              height: 36,
+              width: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.55),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 8,
+                    color: Colors.black.withOpacity(0.12),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.remove_red_eye_outlined,
+                size: 18,
+                color: Color(0xFF1E3A2F), // subtle deep green
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
+
+
+// class _InspoTile extends StatelessWidget {
+//   const _InspoTile({
+//     required this.child,
+//     required this.height,
+//     required this.radius,
+//   });
+
+//   final Widget child;
+//   final double height;
+//   final double radius;
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Container(
+//       height: height,
+//       decoration: BoxDecoration(
+//         borderRadius: BorderRadius.circular(radius),
+//         boxShadow: [
+//           BoxShadow(
+//             blurRadius: 18,
+//             offset: const Offset(0, 10),
+//             color: Colors.black.withOpacity(0.10),
+//           ),
+//         ],
+//       ),
+//       clipBehavior: Clip.antiAlias,
+//       child: child,
+//     );
+//   }
+// }

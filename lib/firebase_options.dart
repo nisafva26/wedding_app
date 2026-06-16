@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -51,7 +48,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCgwiqV9JmqOGlRyd6qa12372fPlzxr1ek',
-    appId: '1:890258382242:android:3cc00f3f6bf346e15f66fb',
+    appId: '1:890258382242:android:f95f9257bdf713cf5f66fb',
     messagingSenderId: '890258382242',
     projectId: 'wedding-invite-56754',
     storageBucket: 'wedding-invite-56754.firebasestorage.app',
@@ -59,11 +56,23 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyACyAXqan1wN31PoSW_ItqZ49_99E-0tbo',
-    appId: '1:890258382242:ios:63b76fd98adbc5ea5f66fb',
+    appId: '1:890258382242:ios:ba4f0c763538297c5f66fb',
     messagingSenderId: '890258382242',
     projectId: 'wedding-invite-56754',
     storageBucket: 'wedding-invite-56754.firebasestorage.app',
-    iosClientId: '890258382242-ha6bdkdgo6u271iutvsr2f1hfnorih82.apps.googleusercontent.com',
-    iosBundleId: 'com.fogtheagency.weddingInvite',
+    androidClientId: '890258382242-15fpg7oqrbk5qtg1rl6nmitbteh2dmgl.apps.googleusercontent.com',
+    iosClientId: '890258382242-an4e83t7ta0hd0u2mg7gais2656s486b.apps.googleusercontent.com',
+    iosBundleId: 'com.fogtheagency.otl',
   );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyDdIxIg5d-7VbpsXsW3kXXjv7wvKKQzJ0I',
+    appId: '1:890258382242:web:19027909f209e90b5f66fb',
+    messagingSenderId: '890258382242',
+    projectId: 'wedding-invite-56754',
+    authDomain: 'wedding-invite-56754.firebaseapp.com',
+    storageBucket: 'wedding-invite-56754.firebasestorage.app',
+    measurementId: 'G-SFTQSXYT4D',
+  );
+
 }

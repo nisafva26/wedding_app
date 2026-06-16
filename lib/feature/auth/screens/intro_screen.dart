@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wedding_invite/feature/auth/widgets/gear_loop_rotation.dart';
@@ -130,6 +131,7 @@ class _RsvpIntroScreenState extends ConsumerState<RsvpIntroScreen>
                   child: Image.asset(
                     'assets/images/new_bg.png',
                     fit: BoxFit.cover,
+                    
                     // -1 is far left, 0 is center, 1 is far right
                     alignment: Alignment(-_bgX.value, 0),
                   ),
@@ -158,7 +160,7 @@ class _RsvpIntroScreenState extends ConsumerState<RsvpIntroScreen>
                                     turnsPerSide: .4,
                                     child: SvgPicture.asset(
                                       'assets/images/name_layer.svg',
-                                      width: localWidth * 0.85,
+                                      width: localWidth * 0.70,
                                       colorFilter: const ColorFilter.mode(
                                         Color(0xffAF3467),
                                         BlendMode.srcIn,
@@ -175,7 +177,7 @@ class _RsvpIntroScreenState extends ConsumerState<RsvpIntroScreen>
                                 ),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: const [
+                                  children:  [
                                     // Text(
                                     //   'RSVP',
                                     //   textAlign: TextAlign.center,
@@ -200,40 +202,40 @@ class _RsvpIntroScreenState extends ConsumerState<RsvpIntroScreen>
                                     // ),
                                     // SizedBox(height: 35),
                                     Text(
-                                      'Momina',
+                                      'Amongst\nus',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        fontSize: 38,
+                                        fontSize: 38.sp,
                                         fontFamily: 'Montage',
                                         height: 1.05,
                                         fontWeight: FontWeight.w500,
                                         color: Colors.white,
                                       ),
                                     ),
-                                    SizedBox(height: 6),
-                                    Text(
-                                      '&',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontFamily: 'Montage',
-                                        height: 1.0,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    SizedBox(height: 6),
-                                    Text(
-                                      'Nizaj',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontFamily: 'Montage',
-                                        fontSize: 38,
-                                        height: 1.05,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.white,
-                                      ),
-                                    ),
+                                    // SizedBox(height: 6),
+                                    // Text(
+                                    //   '&',
+                                    //   textAlign: TextAlign.center,
+                                    //   style: TextStyle(
+                                    //     fontSize: 18,
+                                    //     fontFamily: 'Montage',
+                                    //     height: 1.0,
+                                    //     fontWeight: FontWeight.w500,
+                                    //     color: Colors.white,
+                                    //   ),
+                                    // ),
+                                    // SizedBox(height: 6),
+                                    // Text(
+                                    //   'Nizaj',
+                                    //   textAlign: TextAlign.center,
+                                    //   style: TextStyle(
+                                    //     fontFamily: 'Montage',
+                                    //     fontSize: 38,
+                                    //     height: 1.05,
+                                    //     fontWeight: FontWeight.w500,
+                                    //     color: Colors.white,
+                                    //   ),
+                                    // ),
                                   ],
                                 ),
                               ),

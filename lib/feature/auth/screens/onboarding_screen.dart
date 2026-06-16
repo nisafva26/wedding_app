@@ -1,6 +1,7 @@
 // onboarding_screen.dart
 import 'dart:developer';
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
@@ -24,13 +25,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
 
-  // Timeline (after the initial 2s image-only hold):
-  // 0.00 → 0.55 : wave reveal + image collapses to header height
-  // 0.25 → 0.70 : svg rotates in
-  // 0.70 → 1.00 : centered hero block slides up to final position
+  // Main reveal timeline:
+  // 0.00 – 0.45  Image collapses + wave reveal + body slides in
+  // 0.25 – 0.45  Badge pops in (stagger)
+  // 0.40 – 0.65  Headline slides/fades in (stagger)
+  // 0.55 – 0.80  Ornament rotates in (stagger)
+  // 0.75 – 1.00  Body text fades in (stagger)
+  // 0.85 – 1.00  CTA lifts in last (stagger)
+
   late final Animation<double> _revealT;
+  late final Animation<double> _badgeInT;
+  late final Animation<double> _headlineInT;
   late final Animation<double> _svgInT;
-  late final Animation<double> _heroUpT;
+  late final Animation<double> _bodyFadeT;
+  late final Animation<double> _ctaInT;
 
   bool _showOnlyImage = true;
 
@@ -40,35 +48,50 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 3000),
     );
 
     _revealT = CurvedAnimation(
       parent: _ctrl,
-      curve: const Interval(0.00, 0.55, curve: Curves.easeInOutCubic),
+      curve: const Interval(0.00, 0.45, curve: Curves.easeInOutCubic),
+    );
+
+    _badgeInT = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.25, 0.45, curve: Curves.easeOutBack),
+    );
+
+    _headlineInT = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.40, 0.65, curve: Curves.easeOutCubic),
     );
 
     _svgInT = CurvedAnimation(
       parent: _ctrl,
-      curve: const Interval(0.25, 0.70, curve: Curves.easeOutBack),
+      curve: const Interval(0.55, 0.80, curve: Curves.easeOutBack),
     );
 
-    _heroUpT = CurvedAnimation(
+    _bodyFadeT = CurvedAnimation(
       parent: _ctrl,
-      curve: const Interval(0.70, 1.00, curve: Curves.easeInOutCubic),
+      curve: const Interval(0.75, 1.00, curve: Curves.easeIn),
+    );
+
+    _ctaInT = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.85, 1.00, curve: Curves.easeOutCubic),
     );
 
     _kickoff();
   }
 
   Future<void> _kickoff() async {
-    // 1) Hold only image for 2 seconds
-    await Future.delayed(const Duration(seconds: 1));
+    // Hold only the image briefly (so nothing else flashes in)
+    await Future.delayed(const Duration(milliseconds: 1200));
     if (!mounted) return;
 
     setState(() => _showOnlyImage = false);
 
-    // 2) Run the main animation timeline
+    // Run the staggered timeline
     _ctrl.forward();
   }
 
@@ -83,7 +106,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     final media = MediaQuery.of(context);
     final size = media.size;
 
-    // Final “resting” layout values (your original proportions)
+    // Final “resting” layout values (kept from your proportions)
     final double finalTopImageHeight = size.height * 0.18;
     final double finalWaveOverlap = size.height * 0.06;
 
@@ -100,16 +123,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             ),
           ),
 
-          // ===== PHASE 1: Image-only HOLD overlay (so nothing else is visible) =====
-          if (_showOnlyImage)
-            Positioned.fill(child: Container(color: Colors.transparent)),
+          // ===== PHASE 1: Image-only HOLD overlay =====
+          if (_showOnlyImage) const Positioned.fill(child: SizedBox.expand()),
 
           // ===== PHASE 2+: Animated content =====
           if (!_showOnlyImage)
             AnimatedBuilder(
               animation: _ctrl,
               builder: (context, _) {
-                // Reveal progress 0..1
+                // Base reveal progress
                 final t = _revealT.value;
 
                 // Animate the “image collapses to header height”
@@ -119,7 +141,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                   t,
                 );
 
-                // Animate how much wave overlaps the image (settles to final)
+                // Animate how much wave overlaps the image
                 final double animatedWaveOverlap = lerpDouble(
                   size.height * 0.10,
                   finalWaveOverlap,
@@ -127,33 +149,45 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 );
 
                 // Body starts offscreen then comes up (with wave)
-                // When t=0, push body down; when t=1, body at normal position
                 final double bodySlideY = lerpDouble(size.height * 0.55, 0, t);
 
-                // Wave amplitude grows in
-                final double waveAmp = lerpDouble(0, 15.0, t);
+                // Wave amplitude grows in (subtle)
+                final double waveAmp = lerpDouble(0, 14.0, t);
 
-                // The centered hero block moves up to its final position later
-                // When heroUpT=0: centered. When heroUpT=1: final top padding.
-                final double heroUp = _heroUpT.value;
-                final double centeredTop =
-                    size.height * 0.40; // visually centered
-                final double finalTop = 76.0; // your original spacing
+                // Badge pop in
+                final double badgeT = _badgeInT.value;
+                final double badgeScale = lerpDouble(0.85, 1.0, badgeT);
+                final double badgeOpacity = badgeT.clamp(0.0, 1.0);
+
+                // Headline slide/fade in
+                final double headT = _headlineInT.value;
+                final double headOpacity = headT.clamp(0.0, 1.0);
+                final double headSlideY = lerpDouble(16, 0, headT);
+
+                // SVG rotate/slide in
+                final double svgT = _svgInT.value;
+                final double svgRotation = lerpDouble(-0.42, 0.0, svgT);
+                final double svgSlideY = lerpDouble(22, 0, svgT);
+                final double svgOpacity = svgT.clamp(0.0, 1.0);
+
+                // Body text fades in (no slide -> feels premium)
+                final double bodyOpacity = _bodyFadeT.value.clamp(0.0, 1.0);
+
+                // CTA comes last (slight lift)
+                final double ctaT = _ctaInT.value;
+                final double ctaOpacity = ctaT.clamp(0.0, 1.0);
+                final double ctaLiftY = lerpDouble(20, 0, ctaT);
+
+                // Layout positioning for the hero stack
+                // Keep your original "centered then settle" vibe, but remove jitter:
+                final double centeredTop = size.height * 0.38;
+                final double finalTop = 56.0;
+                // Tie heroTop to revealT so it doesn't fight other elements
                 final double heroTopPadding = lerpDouble(
                   centeredTop,
                   finalTop,
-                  heroUp,
+                  t,
                 );
-
-                // SVG rotate/slide in
-                final double svgIn = _svgInT.value;
-                final double svgRotation = lerpDouble(
-                  -0.45,
-                  0.0,
-                  svgIn,
-                ); // ~ -25deg to 0
-                final double svgSlideY = lerpDouble(30, 0, svgIn);
-                final double svgOpacity = svgIn.clamp(0.0, 1.0);
 
                 return Stack(
                   children: [
@@ -184,48 +218,66 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                       ),
                                       child: SingleChildScrollView(
                                         child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
                                           children: [
                                             SizedBox(height: heroTopPadding),
 
-                                            // Smiley badge
-                                            Container(
-                                              width: 54,
-                                              height: 54,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: OnboardingScreen._ink,
-                                                  width: 3,
-                                                ),
-                                              ),
-                                              child: const Center(
-                                                child: Icon(
-                                                  Icons.sentiment_satisfied_alt,
-                                                  color: OnboardingScreen._ink,
-                                                  size: 30,
+                                            // Smiley badge (staggered)
+                                            Opacity(
+                                              opacity: badgeOpacity,
+                                              child: Transform.scale(
+                                                scale: badgeScale,
+                                                child: Container(
+                                                  width: 50,
+                                                  height: 50,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                      color:
+                                                          OnboardingScreen._ink,
+                                                      width: 3,
+                                                    ),
+                                                  ),
+                                                  child: const Center(
+                                                    child: Icon(
+                                                      Icons
+                                                          .sentiment_satisfied_alt,
+                                                      color:
+                                                          OnboardingScreen._ink,
+                                                      size: 30,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                             ),
 
                                             const SizedBox(height: 26),
 
-                                            // Headline
-                                            Text(
-                                              'Hello our\nfavorite people.',
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                fontSize: 40,
-                                                fontFamily: "Montage",
-                                                height: 1.05,
-                                                color: OnboardingScreen._ink,
-                                                fontWeight: FontWeight.w400,
-                                                letterSpacing: 0.2,
+                                            // Headline (staggered)
+                                            Opacity(
+                                              opacity: headOpacity,
+                                              child: Transform.translate(
+                                                offset: Offset(0, headSlideY),
+                                                child: Text(
+                                                  'Hello our\nfavorite people.',
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                    fontSize: 30,
+                                                    fontFamily: "Montage",
+                                                    height: 1.05,
+                                                    color:
+                                                        OnboardingScreen._ink,
+                                                    fontWeight: FontWeight.w400,
+                                                    letterSpacing: 0.2,
+                                                  ),
+                                                ),
                                               ),
                                             ),
 
                                             const SizedBox(height: 18),
 
-                                            // Ornamental divider (rotates in)
+                                            // Ornamental divider (staggered rotate-in)
                                             Opacity(
                                               opacity: svgOpacity,
                                               child: Transform.translate(
@@ -241,51 +293,49 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
                                             const SizedBox(height: 30),
 
-                                            // Rest content becomes visible after hero moves up
-                                            // (We fade it in slightly as heroUp progresses)
+                                            // Body content (staggered fade in)
                                             Opacity(
-                                              opacity: Curves.easeIn.transform(
-                                                heroUp,
-                                              ),
-                                              child: Column(
-                                                children: [
-                                                  Text(
-                                                    "We can’t wait to celebrate with you.\n\n"
-                                                    "We put together a little wedding app so\n"
-                                                    "you don’t have to dig through messages.\n\n"
-                                                    "Everything you need (and a few fun\n"
-                                                    "surprises) will live here.",
-                                                    textAlign: TextAlign.left,
-                                                    style: const TextStyle(
-                                                      fontSize: 18,
-                                                      height: 1.75,
-                                                      fontFamily: 'SFPRO',
-                                                      color:
-                                                          OnboardingScreen._ink,
-                                                      fontWeight:
-                                                          FontWeight.w500,
+                                              opacity: bodyOpacity,
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(
+                                                  left: 20,
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      "We can’t wait to celebrate with you!\n\n"
+                                                      "We’ve put together a little wedding app so\n"
+                                                      "you don’t have to dig through messages.\n\n"
+                                                      "Everything you need (and a few fun\n"
+                                                      "surprises) will live here.",
+                                                      textAlign: TextAlign.left,
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        // height: 1.75,
+                                                        fontFamily: 'SFPRO',
+                                                        color: OnboardingScreen
+                                                            ._ink,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
                                                     ),
-                                                  ),
-                                                  const SizedBox(height: 28),
-                                                  Text(
-                                                    'Momina & Nizaj',
-                                                    textAlign: TextAlign.center,
-                                                    style: const TextStyle(
-                                                      fontSize: 34,
-                                                      height: 1.0,
-                                                      color:
-                                                          OnboardingScreen._ink,
-                                                      fontWeight:
-                                                          FontWeight.w400,
+                                                    SizedBox(height: 40),
+
+                                                    Align(
+                                                      alignment:
+                                                          Alignment.centerLeft,
+                                                      child: Image.asset(
+                                                        'assets/images/signature.png',
+                                                      ),
                                                     ),
-                                                  ),
-                                                  const SizedBox(height: 44),
-                                                  const SizedBox(height: 72),
-                                                ],
+                                                    // SizedBox(height: 44),
+                                                    // SizedBox(height: 72),
+                                                  ],
+                                                ),
                                               ),
                                             ),
-
-                                            // const Spacer(),
                                           ],
                                         ),
                                       ),
@@ -298,39 +348,43 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                         ),
                       ),
                     ),
-                    // // Bottom half-circle "Next" button (stays, but you can also fade it in later if you want)
+
+                    // Bottom half-circle "Next" button (staggered last)
                     Positioned(
                       left: 0,
                       right: 0,
                       bottom: 0,
                       child: Opacity(
-                        opacity: Curves.easeIn.transform(heroUp),
-                        child: SizedBox(
-                          height: 84,
-                          child: Stack(
-                            alignment: Alignment.bottomCenter,
-                            children: [
-                              Container(
-                                height: 5,
-                                color: OnboardingScreen._button,
-                              ),
-                              _HalfCircleButton(
-                                color: OnboardingScreen._button,
-                                onTap: () async {
-                                  log('ontap : tapped');
+                        opacity: ctaOpacity,
+                        child: Transform.translate(
+                          offset: Offset(0, ctaLiftY),
+                          child: SizedBox(
+                            height: 84,
+                            child: Stack(
+                              alignment: Alignment.bottomCenter,
+                              children: [
+                                Container(
+                                  height: 5,
+                                  color: OnboardingScreen._button,
+                                ),
+                                _HalfCircleButton(
+                                  color: OnboardingScreen._button,
+                                  onTap: () async {
+                                    log('ontap : tapped');
 
-                                  final prefs =
-                                      await SharedPreferences.getInstance();
-                                  await prefs.setBool(
-                                    'has_seen_onboarding',
-                                    true,
-                                  );
+                                    final prefs =
+                                        await SharedPreferences.getInstance();
+                                    await prefs.setBool(
+                                      'has_seen_onboarding',
+                                      true,
+                                    );
 
-                                  ref.invalidate(hasSeenOnboardingProvider);
-                                  context.go('/login');
-                                },
-                              ),
-                            ],
+                                    ref.invalidate(hasSeenOnboardingProvider);
+                                    context.go('/login');
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

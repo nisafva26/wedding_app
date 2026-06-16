@@ -1,9 +1,16 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:wedding_invite/version_1/events/data/event_details_modal.dart';
 import 'package:wedding_invite/version_1/outfit_inspo/data/outfit_data.dart';
 import 'package:wedding_invite/version_1/outfit_inspo/screens/outfit_inspo_screen.dart';
+
+String getCORSImage(String originalUrl) {
+  // This wraps the Pinterest URL so the browser doesn't block it
+  return "https://api.allorigins.win/raw?url=${Uri.encodeComponent(originalUrl)}";
+}
 
 class OutfitSectionUI extends StatelessWidget {
   const OutfitSectionUI({
@@ -78,12 +85,14 @@ class OutfitSectionUI extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                 const SizedBox(height: 16),
+                const SizedBox(height: 16),
               ],
 
-             
-
-              _ImageCarousel(urls: outfit.inspirationImageAssetsWomen),
+              _ImageCarousel(
+                urls: kIsWeb
+                    ? outfit.inspirationImageWebAssetsWomen
+                    : outfit.inspirationImageAssetsWomen,
+              ),
               const SizedBox(height: 30),
 
               Align(
@@ -192,8 +201,9 @@ class _ImageCarouselState extends State<_ImageCarousel> {
 
               itemCount: widget.urls.length,
               onPageChanged: (v) => setState(() => _i = v),
-              itemBuilder: (_, index) =>
-                  Image.network(widget.urls[index], fit: BoxFit.cover),
+              itemBuilder: (_, index) => kIsWeb
+                  ? Image.asset(widget.urls[index], fit: BoxFit.cover)
+                  : Image.network(widget.urls[index], fit: BoxFit.cover),
             ),
           ),
           Padding(

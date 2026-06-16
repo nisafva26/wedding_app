@@ -1,18 +1,38 @@
+import 'dart:developer';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:wedding_invite/version_1/outfit_inspo/data/outfit_data.dart';
 import 'package:wedding_invite/version_1/outfit_inspo/screens/outfit_gallery.dart';
 import 'package:wedding_invite/version_1/outfit_inspo/screens/outfit_inspo_screen.dart';
 import 'package:wedding_invite/version_1/outfit_inspo/widgets/outfit_inspo_image_grid.dart';
 
+enum OutfitEntryMode { general, eventOnly }
+
 class OutfitDetailsSection extends StatefulWidget {
   final OutfitTab gender;
   final ScrollController scrollController;
+
+  /// Only used to choose initial tab in general mode (optional)
   final String eventTitle;
+
+  /// Invited tabs (used only when entryMode == general)
+  final List<OutfitEventTab> allowedTabs;
+
+  /// ✅ NEW
+  final OutfitEntryMode entryMode;
+
+  /// ✅ NEW (used when entryMode == eventOnly)
+  final OutfitEventTab event;
+
   const OutfitDetailsSection({
     super.key,
     required this.gender,
     required this.scrollController,
     required this.eventTitle,
+    required this.allowedTabs,
+    this.entryMode = OutfitEntryMode.general,
+    this.event = OutfitEventTab.mehendi,
   });
 
   @override
@@ -20,38 +40,88 @@ class OutfitDetailsSection extends StatefulWidget {
 }
 
 class _OutfitDetailsSectionState extends State<OutfitDetailsSection> {
-  late OutfitEventTab _tab; // Change to late
+  late OutfitEventTab _tab;
+
+  List<OutfitEventTab> get _effectiveTabs {
+    if (widget.entryMode == OutfitEntryMode.eventOnly) {
+      return [widget.event]; // ✅ only that event
+    }
+    return widget.allowedTabs; // ✅ invited tabs
+  }
 
   @override
   void initState() {
     super.initState();
-    // Map the string title to the enum
-    _tab = _mapTitleToTab(widget.eventTitle);
+    _tab = _resolveInitialTab(
+      title: widget.eventTitle,
+      effectiveTabs: _effectiveTabs,
+      entryMode: widget.entryMode,
+      forcedEvent: widget.event,
+    );
   }
 
-  // Logic to determine initial tab based on event title
+  OutfitEventTab _resolveInitialTab({
+    required String title,
+    required List<OutfitEventTab> effectiveTabs,
+    required OutfitEntryMode entryMode,
+    required OutfitEventTab forcedEvent,
+  }) {
+    if (effectiveTabs.isEmpty) return OutfitEventTab.mehendi;
+
+    // If eventOnly, always lock to event
+    if (entryMode == OutfitEntryMode.eventOnly) return forcedEvent;
+
+    // General mode: try to map title -> tab, else fallback to first invited
+    final preferred = _mapTitleToTab(title);
+    if (effectiveTabs.contains(preferred)) return preferred;
+
+    return effectiveTabs.first;
+  }
+
   OutfitEventTab _mapTitleToTab(String title) {
     final t = title.toLowerCase();
     if (t.contains('nikkah')) return OutfitEventTab.nikkah;
     if (t.contains('reception')) return OutfitEventTab.reception;
-    // Default fallback
     return OutfitEventTab.mehendi;
   }
 
-  // Optional: Handle case where eventTitle might change while widget is alive
   @override
-  void didUpdateWidget(OutfitDetailsSection oldWidget) {
+  void didUpdateWidget(covariant OutfitDetailsSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.eventTitle != widget.eventTitle) {
-      setState(() {
-        _tab = _mapTitleToTab(widget.eventTitle);
-      });
+
+    final effectiveTabsChanged =
+        oldWidget.entryMode != widget.entryMode ||
+        oldWidget.event != widget.event ||
+        oldWidget.allowedTabs != widget.allowedTabs;
+
+    final titleChanged = oldWidget.eventTitle != widget.eventTitle;
+
+    if (effectiveTabsChanged || titleChanged) {
+      final next = _resolveInitialTab(
+        title: widget.eventTitle,
+        effectiveTabs: _effectiveTabs,
+        entryMode: widget.entryMode,
+        forcedEvent: widget.event,
+      );
+
+      // If current tab isn't in the new tabs list, or needs update
+      if (!_effectiveTabs.contains(_tab) || _tab != next) {
+        setState(() => _tab = next);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final effectiveTabs = _effectiveTabs;
+
+    if (effectiveTabs.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final data = OutfitDetailsRegistry.forTab(_tab);
+
+    log('selected tab : ${_tab}');
 
     return Container(
       width: double.infinity,
@@ -60,22 +130,25 @@ class _OutfitDetailsSectionState extends State<OutfitDetailsSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ✅ Always show tabs, but with effectiveTabs (1 tab in eventOnly)
           _TopOutfitTabs(
+            tabs: effectiveTabs,
             tab: _tab,
             selectedColor: data.selectedTabColor,
             unselectedColor: data.unselectedTabColor,
-            onChanged: (t) => setState(() => _tab = t),
+            onChanged: (t) {
+              // ✅ Block switching in eventOnly (even though only 1 tab)
+              if (widget.entryMode == OutfitEntryMode.eventOnly) return;
+              setState(() => _tab = t);
+            },
           ),
           const SizedBox(height: 30),
 
-          // ✅ animated content swap
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 520),
             reverseDuration: const Duration(milliseconds: 420),
             switchInCurve: Curves.easeOutCubic,
             switchOutCurve: Curves.easeInCubic,
-
-            // 🔥 IMPORTANT: don't let the outgoing child re-layout your scroll
             layoutBuilder: (currentChild, previousChildren) {
               return Stack(
                 alignment: Alignment.topCenter,
@@ -85,27 +158,21 @@ class _OutfitDetailsSectionState extends State<OutfitDetailsSection> {
                 ],
               );
             },
-
             transitionBuilder: (child, anim) {
-              // anim goes 0->1 for incoming, 1->0 for outgoing
               final fade = CurvedAnimation(
                 parent: anim,
                 curve: Curves.easeOutCubic,
               );
-
-              // subtle scale only (no slide = less jank)
               final scale = Tween<double>(begin: 0.985, end: 1.0).animate(
                 CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
               );
-
               return FadeTransition(
                 opacity: fade,
                 child: ScaleTransition(scale: scale, child: child),
               );
             },
-
             child: RepaintBoundary(
-              key: ValueKey(_tab), // keep this
+              key: ValueKey(_tab),
               child: _OutfitTabBody(
                 data: data,
                 gender: widget.gender,
@@ -121,12 +188,14 @@ class _OutfitDetailsSectionState extends State<OutfitDetailsSection> {
 
 class _TopOutfitTabs extends StatelessWidget {
   const _TopOutfitTabs({
+    required this.tabs,
     required this.tab,
     required this.selectedColor,
     required this.unselectedColor,
     required this.onChanged,
   });
 
+  final List<OutfitEventTab> tabs;
   final OutfitEventTab tab;
   final Color selectedColor;
   final Color unselectedColor;
@@ -134,8 +203,6 @@ class _TopOutfitTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = OutfitEventTab.values;
-
     return Padding(
       padding: const EdgeInsets.only(left: 24),
       child: Row(
@@ -216,7 +283,13 @@ class _OutfitTabBody extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: // In _OutfitTabBody builder:
           OutfitInspirationMasonryGrid(
-            images: gender == OutfitTab.women
+            images: kIsWeb
+                ? gender == OutfitTab.women
+                      ? data.inspirationImageWebAssetsWomen
+                      : gender == OutfitTab.men
+                      ? data.inspirationImageWebAssetsMen
+                      : data.inspirationImageWebAssetsKids
+                : gender == OutfitTab.women
                 ? data.inspirationImageAssetsWomen
                 : gender == OutfitTab.men
                 ? data.inspirationImageAssetsMen
@@ -225,8 +298,8 @@ class _OutfitTabBody extends StatelessWidget {
             onImageTap: (index) async {
               // 1. Scroll the background up slightly
               // You should pass the ScrollController from OutfitInspoScreen to here
-              scrollController?.animateTo(
-                scrollController!.offset - 520,
+              scrollController.animateTo(
+                scrollController.offset - 520,
                 duration: const Duration(milliseconds: 600),
                 curve: Curves.easeOutCubic,
               );
@@ -241,7 +314,13 @@ class _OutfitTabBody extends StatelessWidget {
                   pageBuilder: (context, animation, _) => FadeTransition(
                     opacity: animation,
                     child: EventOutfitGallery(
-                      images: gender == OutfitTab.women
+                      images: kIsWeb
+                          ? gender == OutfitTab.women
+                                ? data.inspirationImageWebAssetsWomen
+                                : gender == OutfitTab.men
+                                ? data.inspirationImageWebAssetsMen
+                                : data.inspirationImageWebAssetsKids
+                          : gender == OutfitTab.women
                           ? data.inspirationImageAssetsWomen
                           : gender == OutfitTab.men
                           ? data.inspirationImageAssetsMen
@@ -281,7 +360,9 @@ class _IntroCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: gender == OutfitTab.women
             ? data.introCardColor
-            : data.introCardColorMen,
+            : gender == OutfitTab.men
+            ? data.introCardColorMen
+            : data.introCardColorKid,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -343,7 +424,9 @@ class _WeatherCard extends StatelessWidget {
         // ),
         color: gender == OutfitTab.women
             ? data.weatherColorWomen
-            : data.weatherColorMen,
+            : gender == OutfitTab.men
+            ? data.weatherColorMen
+            : data.weatherColorKid,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

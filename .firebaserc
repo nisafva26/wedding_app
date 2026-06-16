@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "wedding-invite-56754"
-  }
+  },
+  "targets": {
+    "wedding-invite-56754": {
+      "hosting": {
+        "amongstus": [
+          "amongstus"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

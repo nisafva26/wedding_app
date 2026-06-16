@@ -6,7 +6,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:loading_indicator/loading_indicator.dart';
 import 'package:wedding_invite/feature/auth/screens/login_screen.dart';
+import 'package:wedding_invite/router/router_provider.dart';
+import 'package:wedding_invite/version_1/dashbaord/providers/firestore_provider.dart';
 
 class SuccessScreen extends ConsumerStatefulWidget {
   const SuccessScreen({super.key});
@@ -41,18 +44,19 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
 
       final uid = user.uid;
       final phone = user.phoneNumber;
+      bool isRsvpedForThisWedding = false;
 
       if (phone == null) {
         log('SuccessScreen: user has no phoneNumber');
       }
 
-      final usersRef =
-          FirebaseFirestore.instance.collection('users').doc(uid);
+      final usersRef = FirebaseFirestore.instance.collection('users').doc(uid);
       final existingSnap = await usersRef.get();
 
       // 1) Check guestIndex by phone
       Map<String, dynamic> invitedWeddings = {};
       String accountType = 'user'; // default
+      final weddingId = ref.watch(activeWeddingIdProvider);
 
       if (phone != null) {
         final normalized = _normalizePhone(phone);
@@ -63,15 +67,34 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
 
         if (guestIndexSnap.exists) {
           final data = guestIndexSnap.data();
-          invitedWeddings =
-              Map<String, dynamic>.from(data?['weddings'] ?? {});
+          invitedWeddings = Map<String, dynamic>.from(data?['weddings'] ?? {});
           if (invitedWeddings.isNotEmpty) {
             accountType = 'guest';
           }
-          log('SuccessScreen: guestIndex hit, invited to ${invitedWeddings.keys.toList()}');
+          log(
+            'SuccessScreen: guestIndex hit, invited to ${invitedWeddings.keys.toList()}',
+          );
         } else {
           log('SuccessScreen: no guestIndex doc for $normalized');
         }
+
+        final rsvpQuery = await FirebaseFirestore.instance
+            .collection('weddings')
+            .doc(weddingId) // ✅ current wedding only
+            .collection('rsvps')
+            .where('phone', isEqualTo: normalized)
+            .limit(1)
+            .get();
+
+        if (rsvpQuery.docs.isNotEmpty) {
+          isRsvpedForThisWedding = true;
+          log('RSVP FOUND for this wedding');
+        } else {
+          log('No RSVP for this wedding');
+        }
+
+        ref.read(isRsvpedForThisWeddingProvider.notifier).state =
+            isRsvpedForThisWedding;
       }
 
       // Preserve existing adminWeddingIds if any
@@ -84,20 +107,17 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
       }
 
       // 2) Upsert user document
-      await usersRef.set(
-        {
-          'uid': uid,
-          'phoneNumber': phone,
-          'email': user.email,
-          'photoUrl': user.photoURL,
-          'accountType': accountType, // 'user' or 'guest' (admin later)
-          'invitedWeddings': invitedWeddings,
-          'adminWeddingIds': adminWeddingIds,
-          'updatedAt': FieldValue.serverTimestamp(),
-          if (!existingSnap.exists) 'createdAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      await usersRef.set({
+        'uid': uid,
+        'phoneNumber': phone,
+        'email': user.email,
+        'photoUrl': user.photoURL,
+        'accountType': accountType, // 'user' or 'guest' (admin later)
+        'invitedWeddings': invitedWeddings,
+        'adminWeddingIds': adminWeddingIds,
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (!existingSnap.exists) 'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       // Re-read to check name
       final finalSnap = await usersRef.get();
@@ -131,8 +151,26 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
   Widget build(BuildContext context) {
     // Simple loading screen with your pastel theme
     return const Scaffold(
+      backgroundColor: Colors.white,
       body: Center(
-        child: CircularProgressIndicator(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 100,
+              child: LoadingIndicator(
+                indicatorType:
+                    Indicator.ballScaleMultiple, // Soft pulsing circles
+                colors: [
+                  const Color(0xFF06471D), // Your deep green
+                  const Color(0xFF8B2B57), // Your badge pink
+                ],
+                strokeWidth: 2,
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

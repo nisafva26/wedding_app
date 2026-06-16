@@ -2,14 +2,19 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:wedding_invite/version_1/events/data/event_details_modal.dart';
 import 'package:wedding_invite/version_1/events/widgets/countdown_timer.dart';
 import 'package:wedding_invite/version_1/events/widgets/event_details_ui.dart';
 import 'package:wedding_invite/version_1/events/widgets/event_flow_section_ui.dart';
 import 'package:wedding_invite/version_1/events/widgets/outfit_section_ui.dart';
+import 'package:wedding_invite/version_1/media/screens/event_gallery_page.dart';
+import 'package:wedding_invite/version_1/media/widgets/gallery_cta.dart';
 import 'package:wedding_invite/version_1/outfit_inspo/data/outfit_data.dart';
+import 'package:wedding_invite/version_1/outfit_inspo/screens/outfit_inspo_details_section.dart';
 import 'package:wedding_invite/version_1/outfit_inspo/screens/outfit_inspo_screen.dart';
 
 class EventDetailsScreenV1 extends StatefulWidget {
@@ -29,6 +34,8 @@ class EventDetailsScreenV1 extends StatefulWidget {
     required this.content,
     required this.eventIcon,
     required this.textColor,
+    required this.timeText,
+    required this.eventId,
   });
 
   final String eventTitle,
@@ -44,6 +51,8 @@ class EventDetailsScreenV1 extends StatefulWidget {
   final EventDetailsContent content;
   final String eventIcon;
   final Color textColor;
+  final String timeText;
+  final String eventId;
 
   @override
   State<EventDetailsScreenV1> createState() => _EventDetailsScreenV1State();
@@ -113,6 +122,9 @@ class _EventDetailsScreenV1State extends State<EventDetailsScreenV1>
     required OutfitTab initialTab,
     required String heroTag,
     required String eventTitle,
+    required OutfitEntryMode entryMode,
+
+    required OutfitEventTab event,
   }) {
     return PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 700),
@@ -121,6 +133,8 @@ class _EventDetailsScreenV1State extends State<EventDetailsScreenV1>
         initialTab: initialTab,
         heroTag: heroTag,
         eventTitle: eventTitle,
+        entryMode: entryMode,
+        event: event,
       ),
       opaque: true,
       barrierColor: Colors.black.withOpacity(0.02),
@@ -171,12 +185,12 @@ class _EventDetailsScreenV1State extends State<EventDetailsScreenV1>
             child: Container(
               color: widget.content.details.mainColor,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, topPad, 20, 0),
+                padding: EdgeInsets.fromLTRB(20.w, topPad.w, 20.w, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildTopNav(widget.textColor),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20.h),
                     Row(
                       children: [
                         widget.eventTitle.toLowerCase() == 'nikah' ||
@@ -196,16 +210,16 @@ class _EventDetailsScreenV1State extends State<EventDetailsScreenV1>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12.h),
                     Text(
                       widget.eventTitle,
                       style: TextStyle(
-                        fontSize: 52,
+                        fontSize: 52.sp,
                         color: Colors.white,
                         fontFamily: 'Montage',
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     _infoRow(
                       Icons.calendar_today_outlined,
                       DateFormat("dd MMM yyyy").format(widget.dateTime),
@@ -213,7 +227,7 @@ class _EventDetailsScreenV1State extends State<EventDetailsScreenV1>
                     ),
                     _infoRow(
                       Icons.access_time,
-                      "${DateFormat("h a").format(widget.dateTime)} onwards",
+                      "${widget.timeText} onwards",
                       Colors.white,
                     ),
                     _infoRow(
@@ -264,17 +278,39 @@ class _EventDetailsScreenV1State extends State<EventDetailsScreenV1>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 15),
+
                               // DETAILS
                               KeyedSubtree(
                                 key: _detailsKey,
                                 child: DetailsSectionUI(
                                   data: widget.content.details,
-                                  onDirectionsTap: () {},
+                                  onDirectionsTap: () async {
+                                    final uri = Uri.parse(
+                                      widget.content.details.location.locUrl!,
+                                    );
+
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(
+                                        uri,
+                                        mode: LaunchMode
+                                            .externalApplication, // 👈 opens browser
+                                      );
+                                    } else {
+                                      debugPrint('Could not launch $uri');
+                                    }
+                                  },
                                   color: widget.content.details.detailsColor,
                                   title: widget.eventTitle.toLowerCase(),
                                 ),
                               ),
-                              const SizedBox(height: 63),
+                              const SizedBox(height: 43),
+                              EventGalleryCTACard(
+                                weddingId: 'u7MmJS2IEIjOGax9E6md',
+                                eventId: widget.eventId,
+                              ),
+
+                              const SizedBox(height: 43),
+
                               // OUTFIT
                               KeyedSubtree(
                                 key: _outfitKey,
@@ -295,15 +331,48 @@ class _EventDetailsScreenV1State extends State<EventDetailsScreenV1>
                                         heroTag: tag,
                                         eventTitle: widget.eventTitle
                                             .toLowerCase(),
+                                        entryMode: OutfitEntryMode.eventOnly,
+                                        event:
+                                            widget.eventTitle.toLowerCase() ==
+                                                'mehendi'
+                                            ? OutfitEventTab.mehendi
+                                            : widget.eventTitle.toLowerCase() ==
+                                                  'nikkah'
+                                            ? OutfitEventTab.nikkah
+                                            : OutfitEventTab.reception,
                                       ),
                                     );
                                   },
-                                  onViewAll: () {},
+                                  onViewAll: () {
+                                    final tag = "outfit-hero-women";
+                                    Navigator.of(context).push(
+                                      _outfitInspoRoute(
+                                        initialTab: OutfitTab.women,
+
+                                        heroTag: tag,
+                                        eventTitle: widget.eventTitle
+                                            .toLowerCase(),
+                                        entryMode: OutfitEntryMode.eventOnly,
+                                        event:
+                                            widget.eventTitle.toLowerCase() ==
+                                                'mehendi'
+                                            ? OutfitEventTab.mehendi
+                                            : widget.eventTitle.toLowerCase() ==
+                                                  'nikkah'
+                                            ? OutfitEventTab.nikkah
+                                            : OutfitEventTab.reception,
+                                      ),
+                                    );
+                                  },
                                   eventType:
                                       widget.eventTitle.toLowerCase() ==
                                           'mehendi'
                                       ? OutfitEventTab.mehendi
+                                      : widget.eventTitle.toLowerCase() ==
+                                            'nikkah'
+                                      ? OutfitEventTab.nikkah
                                       : OutfitEventTab.reception,
+
                                   color:
                                       widget.content.details.outfitSectionColor,
                                 ),
@@ -312,7 +381,7 @@ class _EventDetailsScreenV1State extends State<EventDetailsScreenV1>
                               // EVENT FLOW
                               KeyedSubtree(
                                 key: _eventKey,
-                                
+
                                 child: EventFlowSectionUI(
                                   data: widget.content.flow,
                                   color: widget.content.details.detailsColor,
@@ -457,11 +526,11 @@ class _EventDetailsScreenV1State extends State<EventDetailsScreenV1>
 
   Widget _infoRow(IconData icon, String text, Color textColor) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.only(bottom: 10.w),
       child: Row(
         children: [
-          Icon(icon, color: textColor, size: 20),
-          const SizedBox(width: 10),
+          Icon(icon, color: textColor, size: 20.h),
+          SizedBox(width: 10.w),
           Text(text, style: TextStyle(color: textColor)),
         ],
       ),
@@ -487,11 +556,11 @@ class _EventDetailsScreenV1State extends State<EventDetailsScreenV1>
           },
           behavior: HitTestBehavior.opaque,
           child: Padding(
-            padding: const EdgeInsets.only(right: 20),
+            padding: EdgeInsets.only(right: 20.w),
             child: Text(
               e.value,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 24.sp,
                 fontFamily: 'Montage',
                 color: selected
                     ? widget.content.details.mainColor

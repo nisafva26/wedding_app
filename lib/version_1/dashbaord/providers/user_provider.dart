@@ -24,7 +24,12 @@ final userRsvpProvider = FutureProvider<RsvpModel?>((ref) async {
       .limit(1)
       .get();
 
-  if (snap.docs.isEmpty) return null;
+  if (snap.docs.isEmpty) {
+    log('snap is empty');
+
+    return null;
+
+  }
 
   return RsvpModel.fromDoc(snap.docs.first);
 });

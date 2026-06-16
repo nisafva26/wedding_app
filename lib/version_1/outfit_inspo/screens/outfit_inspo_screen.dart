@@ -1,7 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wedding_invite/version_1/dashbaord/providers/event_provider.dart';
 import 'package:wedding_invite/version_1/events/screens/event_details_screen_v1.dart';
+import 'package:wedding_invite/version_1/outfit_inspo/data/outfit_data.dart';
 import 'package:wedding_invite/version_1/outfit_inspo/screens/outfit_inspo_details_section.dart';
+
+final allowedOutfitTabsProvider = FutureProvider<List<OutfitEventTab>>((
+  ref,
+) async {
+  final goingEvents = await ref.watch(goingEventsProvider.future);
+
+  // Convert your events into OutfitEventTab(s)
+  final set = <OutfitEventTab>{};
+
+  for (final e in goingEvents) {
+    final title = (e.title)
+        .toLowerCase(); // adjust if your model uses another field
+    if (title.contains('mehendi')) set.add(OutfitEventTab.mehendi);
+    if (title.contains('nikkah')) set.add(OutfitEventTab.nikkah);
+    if (title.contains('reception')) set.add(OutfitEventTab.reception);
+  }
+
+  // Keep a nice order
+  const order = [
+    OutfitEventTab.mehendi,
+    OutfitEventTab.nikkah,
+    OutfitEventTab.reception,
+  ];
+
+  final tabs = order.where(set.contains).toList();
+
+  // If somehow none matched, fallback to empty (UI should handle)
+  return tabs;
+});
 
 enum OutfitTab { men, women, kids }
 
@@ -12,27 +44,36 @@ String _tabLabel(OutfitTab t) => switch (t) {
 };
 
 String _tabImageAsset(OutfitTab t) => switch (t) {
-  OutfitTab.men => "assets/images/men_detail.png",
+  OutfitTab.men => "assets/images/men_detail_v2.png",
   OutfitTab.women => "assets/images/women_detail.png",
-  OutfitTab.kids => "assets/images/men_detail.png",
+  OutfitTab.kids => "assets/images/kid_details.png",
 };
 
-class OutfitInspoScreen extends StatefulWidget {
+class OutfitInspoScreen extends ConsumerStatefulWidget {
   const OutfitInspoScreen({
     super.key,
     this.initialTab = OutfitTab.women,
-    required this.heroTag, required this.eventTitle,
+    required this.heroTag,
+    required this.eventTitle,
+    this.entryMode = OutfitEntryMode.general,
+    this.event = OutfitEventTab.mehendi,
   });
 
   final OutfitTab initialTab;
   final String heroTag;
   final String eventTitle;
 
+  /// ✅ NEW
+  final OutfitEntryMode entryMode;
+
+  /// ✅ NEW (used when entryMode == eventOnly)
+  final OutfitEventTab event;
+
   @override
-  State<OutfitInspoScreen> createState() => _OutfitInspoScreenState();
+  ConsumerState<OutfitInspoScreen> createState() => _OutfitInspoScreenState();
 }
 
-class _OutfitInspoScreenState extends State<OutfitInspoScreen> {
+class _OutfitInspoScreenState extends ConsumerState<OutfitInspoScreen> {
   late AnimationController _sheetController;
   late final ScrollController _scrollController;
 
@@ -55,6 +96,7 @@ class _OutfitInspoScreenState extends State<OutfitInspoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final allowedTabsAsync = ref.watch(allowedOutfitTabsProvider);
     return Scaffold(
       extendBodyBehindAppBar: true,
       // backgroundColor: widget.headerBgColor,
@@ -183,8 +225,27 @@ class _OutfitInspoScreenState extends State<OutfitInspoScreen> {
               children: [
                 Container(
                       width: double.infinity,
+
                       // padding: const EdgeInsets.fromLTRB(24, 80, 24, 60),
-                      child: OutfitDetailsSection(gender: _outfitTab,scrollController: _scrollController,eventTitle: widget.eventTitle,),
+                      // child: OutfitDetailsSection(
+                      //   gender: _outfitTab,
+                      //   scrollController: _scrollController,
+                      //   eventTitle: widget.eventTitle,
+                      // ),
+                      child: allowedTabsAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (e, s) => const SizedBox.shrink(),
+                        data: (allowedTabs) {
+                          return OutfitDetailsSection(
+                            gender: _outfitTab, // your value
+                            scrollController: _scrollController,
+                            eventTitle: widget.eventTitle,
+                            allowedTabs: allowedTabs, // ✅ the whole fix
+                            entryMode: widget.entryMode,
+                            event: widget.event,
+                          );
+                        },
+                      ),
                     )
                     .animate(onInit: (c) => _sheetController = c)
                     .fadeIn(duration: 400.ms, delay: 300.ms)

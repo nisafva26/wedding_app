@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 class OutfitInspirationsSection extends StatefulWidget {
@@ -102,7 +103,7 @@ class _OutfitInspirationsSectionState extends State<OutfitInspirationsSection>
       child: Container(
         color: const Color(0xFFECFFF3), // mint background
         // padding: const EdgeInsets.fromLTRB(20, 64, 20, 26),
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 26),
+        padding:  EdgeInsets.fromLTRB(20.w, 0, 20.w, 26.w),
 
         child: AnimatedBuilder(
           animation: _c,
@@ -129,7 +130,7 @@ class _OutfitInspirationsSectionState extends State<OutfitInspirationsSection>
                 //     ),
                 //   ),
                 // ),
-                const SizedBox(height: 18),
+                 SizedBox(height: 18.h),
 
                 // Row 1: Women (left) + Men (right)
                 Row(
@@ -137,7 +138,7 @@ class _OutfitInspirationsSectionState extends State<OutfitInspirationsSection>
                   children: [
                     Expanded(
                       child: Transform.translate(
-                        offset: Offset(0, _slideWomen.value),
+                        offset: Offset(0, _slideWomen.value.h),
                         child: Opacity(
                           opacity: opacity,
                           child: _OutfitTile(
@@ -152,14 +153,14 @@ class _OutfitInspirationsSectionState extends State<OutfitInspirationsSection>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                     SizedBox(width: 16.w),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(
-                          top: 86,
+                        padding:  EdgeInsets.only(
+                          top: 86.h,
                         ), // match your layout offset
                         child: Transform.translate(
-                          offset: Offset(0, _slideMen.value),
+                          offset: Offset(0, _slideMen.value.h),
                           child: Opacity(
                             opacity: opacity,
                             child: _OutfitTile(
@@ -182,7 +183,7 @@ class _OutfitInspirationsSectionState extends State<OutfitInspirationsSection>
                 Align(
                   alignment: Alignment.centerLeft,
                   child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.52,
+                    width: MediaQuery.of(context).size.width.w * 0.52.w,
                     child: Transform.translate(
                       offset: Offset(0, _slideKids.value),
                       child: Opacity(
@@ -201,7 +202,7 @@ class _OutfitInspirationsSectionState extends State<OutfitInspirationsSection>
                   ),
                 ),
 
-                const SizedBox(height: 22),
+                 SizedBox(height: 22.h),
 
                 // View All (bottom-right)
                 Align(
@@ -257,7 +258,7 @@ class _OutfitTile extends StatelessWidget {
             children: [
               Image.asset(bgImage),
               Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding:  EdgeInsets.all(20.0.w),
                 child: Container(
                   decoration: BoxDecoration(
                     // border: Border.all(color: borderColor.withOpacity(0.75), width: 6),
@@ -276,13 +277,13 @@ class _OutfitTile extends StatelessWidget {
                 style: TextStyle(
                   color: labelColor,
                   fontFamily: 'Montage',
-                  fontSize: 30,
+                  fontSize: 30.sp,
                   fontWeight: FontWeight.w500,
                   // fontFamily: "YourSerifFont",
                 ),
               ),
-              const SizedBox(width: 8),
-              Icon(Icons.arrow_forward_rounded, size: 22, color: labelColor),
+               SizedBox(width: 8.w),
+              Icon(Icons.arrow_forward_rounded, size: 22.w, color: labelColor),
             ],
           ),
         ],
@@ -301,19 +302,19 @@ class _GreenViewAllButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        padding:  EdgeInsets.symmetric(horizontal: 18.w, vertical: 12.w),
         decoration: BoxDecoration(
           color: const Color(0xFF1F4D35),
           borderRadius: BorderRadius.circular(999),
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 16,
-              offset: const Offset(0, 10),
-              color: Colors.black.withOpacity(0.16),
-            ),
-          ],
+          // boxShadow: [
+          //   BoxShadow(
+          //     blurRadius: 16,
+          //     offset: const Offset(0, 10),
+          //     color: Colors.black.withOpacity(0.16),
+          //   ),
+          // ],
         ),
-        child: const Row(
+        child:  Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
@@ -323,8 +324,8 @@ class _GreenViewAllButton extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            SizedBox(width: 8),
-            Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
+            SizedBox(width: 8.w),
+            Icon(Icons.arrow_forward_rounded, size: 18.sp, color: Colors.white),
           ],
         ),
       ),

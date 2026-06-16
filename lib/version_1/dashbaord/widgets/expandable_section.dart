@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:wedding_invite/version_1/dashbaord/screens/user_dashborad_screen.dart';
 import 'package:wedding_invite/version_1/dashbaord/widgets/wave_seperator.dart';
 import 'package:wedding_invite/version_1/waves/wave_seperator_helper.dart';
 
@@ -60,17 +62,11 @@ class _PremiumExpandableSectionState extends State<PremiumExpandableSection> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // This ensures there's no gap during animation
       color: widget.currentSectionColor,
       child: Column(
         children: [
           // 1. THE WAVE (Transitions from Previous Color to Current Color)
-          WaveSeparator(
-            topColor: widget.previousSectionColor,
-            bottomColor: widget.currentSectionColor,
-          ),
-
-          //  TopWaveSeparator(
+          // WaveSeparator(
           //   topColor: widget.previousSectionColor,
           //   bottomColor: widget.currentSectionColor,
           // ),
@@ -80,14 +76,17 @@ class _PremiumExpandableSectionState extends State<PremiumExpandableSection> {
             onTap: _handleTap,
             behavior: HitTestBehavior.opaque,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              padding:  EdgeInsets.symmetric(
+                horizontal: 20.w,
+                vertical: 24.w,
+              ).copyWith(top: 60),
               child: Row(
                 children: [
                   Text(
                     widget.title,
-                    style:  TextStyle(
+                    style: TextStyle(
                       color: widget.titleColor,
-                      fontSize: 32,
+                      fontSize: 32.sp,
                       fontFamily: 'Montage',
                     ),
                   ),
@@ -95,13 +94,13 @@ class _PremiumExpandableSectionState extends State<PremiumExpandableSection> {
                   if (widget.countText != null && _isExpanded)
                     Text(
                       widget.countText!,
-                      style: const TextStyle(
+                      style:  TextStyle(
                         color: Color(0xFF1F4D35),
-                        fontSize: 18,
+                        fontSize: 18.sp,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  const SizedBox(width: 8),
+                   SizedBox(width: 8.w),
                   AnimatedRotation(
                     turns: _isExpanded ? 0.5 : 0,
                     duration: const Duration(milliseconds: 300),
@@ -126,9 +125,12 @@ class _PremiumExpandableSectionState extends State<PremiumExpandableSection> {
           //   sizeCurve: Curves.easeInOutCubic,
           // ),
           AnimatedCrossFade(
-            firstChild: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: widget.collapsedPreview,
+            firstChild: InkWell(
+              onTap: _handleTap,
+              child: Padding(
+                padding:  EdgeInsets.symmetric(horizontal: 20.w),
+                child: widget.collapsedPreview,
+              ),
             ),
             secondChild: widget.expandedContent,
             crossFadeState: _isExpanded
@@ -137,6 +139,7 @@ class _PremiumExpandableSectionState extends State<PremiumExpandableSection> {
 
             // 1. Increase duration slightly for a more "premium" weighted feel
             duration: const Duration(milliseconds: 600),
+            reverseDuration:const Duration(milliseconds: 600) ,
 
             // 2. Add these curves to slow down the entering/exiting children
             // This makes the "Return" animation follow the same smooth path as the "Expand"
@@ -146,7 +149,8 @@ class _PremiumExpandableSectionState extends State<PremiumExpandableSection> {
             // 3. Keep the size change smooth
             sizeCurve: Curves.easeInOutCubic,
           ),
-          const SizedBox(height: 20),
+          widget.title.startsWith('Gift')? SizedBox(height: 50.h):
+           SizedBox(height: 80.h),
 
           // ✅ BOTTOM WAVE: current -> next
           // BottomWaveSeparator(

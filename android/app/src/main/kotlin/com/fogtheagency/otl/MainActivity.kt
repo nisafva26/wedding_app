@@ -1,4 +1,4 @@
-package com.example.wedding_invite
+package com.fogtheagency.otl
 
 import io.flutter.embedding.android.FlutterActivity
 

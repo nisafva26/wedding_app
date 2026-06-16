@@ -2,26 +2,32 @@ import 'dart:developer';
 import 'dart:ui';
 
 import 'package:animations/animations.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:loading_indicator/loading_indicator.dart';
 import 'package:wedding_invite/feature/auth/widgets/gear_loop_rotation.dart';
+import 'package:wedding_invite/notifications/notification_service.dart';
+import 'package:wedding_invite/router/router_provider.dart';
+import 'package:wedding_invite/version_1/admin/screens/admin_notification_screen.dart';
+import 'package:wedding_invite/version_1/admin/screens/admin_screen.dart';
 import 'package:wedding_invite/version_1/dashbaord/models/wedding_rsvp_model.dart';
+import 'package:wedding_invite/version_1/dashbaord/providers/event_gallery_preview_provider.dart';
 import 'package:wedding_invite/version_1/dashbaord/providers/event_provider.dart';
+import 'package:wedding_invite/version_1/dashbaord/providers/firestore_provider.dart';
 import 'package:wedding_invite/version_1/dashbaord/providers/user_provider.dart';
-import 'package:wedding_invite/version_1/dashbaord/screens/event_details_user_v1.dart'
-    hide WaveSeparator;
 import 'package:wedding_invite/version_1/dashbaord/screens/outfit-inspiration_screen.dart';
-import 'package:wedding_invite/version_1/dashbaord/widgets/event_sticky_header.dart';
+import 'package:wedding_invite/version_1/dashbaord/widgets/dashboard_empty_widget.dart';
+import 'package:wedding_invite/version_1/dashbaord/widgets/event_card.dart';
+import 'package:wedding_invite/version_1/dashbaord/widgets/event_gallery_album_card.dart';
 import 'package:wedding_invite/version_1/dashbaord/widgets/expandable_section.dart';
 import 'package:wedding_invite/version_1/dashbaord/widgets/flip.dart';
 import 'package:wedding_invite/version_1/dashbaord/widgets/gift_card.dart';
 import 'package:wedding_invite/version_1/dashbaord/widgets/staggered_slide_entrance.dart';
-import 'package:wedding_invite/version_1/dashbaord/widgets/wave_seperator.dart';
 import 'package:wedding_invite/version_1/events/data/event_details_modal.dart';
 import 'package:wedding_invite/version_1/events/screens/event_details_screen_v1.dart';
 import 'package:wedding_invite/version_1/gifts/screens/cash_gift_screen.dart';
@@ -46,6 +52,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
   final GlobalKey _eventsKey = GlobalKey();
   final GlobalKey _outfitKey = GlobalKey();
   final GlobalKey _giftsKey = GlobalKey();
+  GlobalKey _galleryKey = GlobalKey();
 
   double contHeight = 300;
 
@@ -55,6 +62,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
   @override
   void initState() {
     super.initState();
+
     _scrollController.addListener(_handleScroll);
 
     // ✅ listen in initState using listenManual
@@ -72,6 +80,13 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
         // Trigger write WITHOUT watching it in UI
         ref.read(ensureWeddingUserDocProvider.future);
       });
+    });
+    getfcmToken();
+  }
+
+  void getfcmToken() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await NotificationService.instance.syncFcmTokenToUserDoc();
     });
   }
 
@@ -228,46 +243,6 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
     );
   }
 
-  Widget _buildAnimatedSection({
-    required int delay,
-    required double topPadding,
-    required Color color,
-    required String text,
-    required CustomClipper<Path> clipper,
-    Color textColor = Colors.black,
-  }) {
-    return TweenAnimationBuilder<double>(
-      // Animates from 1.0 (down) to 0.0 (final position)
-      tween: Tween(begin: 1.0, end: 0.0),
-      curve: Curves.easeOutQuart,
-      duration: const Duration(milliseconds: 800),
-      // This adds the delay before the animation starts
-      key: ValueKey(text),
-      builder: (context, value, child) {
-        return Padding(
-          padding: EdgeInsets.only(
-            top: topPadding + (value * 50), // Slides up by 50 pixels
-          ),
-          child: Opacity(
-            opacity: 1.0 - value, // Fades in
-            child: child,
-          ),
-        );
-      },
-      // We put the heavy ClipPath here so it doesn't rebuild every frame
-      child: ClipPath(
-        clipper: clipper,
-        child: Container(
-          height: 200,
-          color: color,
-          child: Center(
-            child: Text(text, style: TextStyle(color: textColor)),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _rsvpSub?.close();
@@ -280,6 +255,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
   Widget build(BuildContext context) {
     final rsvpAsync = ref.watch(userRsvpProvider);
     final eventsAsync = ref.watch(goingEventsProvider);
+    final isGuest = ref.watch(isGuestProvider); // Or your auth check logic
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -303,27 +279,20 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              // Adding a themed text to make it feel premium
-              // Text(
-              //   "Setting the stage for your arrival...",
-              //   style: TextStyle(
-              //     color: const Color(0xFF06471D).withOpacity(0.7),
-              //     fontFamily: 'SFPRO',
-              //     fontSize: 14,
-              //     letterSpacing: 0.5,
-              //     fontWeight: FontWeight.w500,
-              //   ),
-              // ).animate().fadeIn(duration: 600.ms),
             ],
           ),
         ),
         error: (e, _) => _ErrorState(message: e.toString()),
         data: (rsvp) {
           if (rsvp == null) {
-            return const _EmptyState(
+            return EmptyState(
               title: "You’re not on the guest list (yet).",
               subtitle:
                   "We couldn’t find an RSVP linked to this number. Please check the phone number or contact the host.",
+              isGuest: isGuest,
+              onLogin: () {
+                ref.read(isGuestProvider.notifier).state = false;
+              },
             );
           }
 
@@ -347,1163 +316,636 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
               //     introProgress: _introProgress,
               //   ),
               // ),
-              // SliverPersistentHeader(
-              //   pinned: false,
-              //   floating: false,
-              //   delegate: _IntroHeaderDelegate(
-              //     coupleTitle: "Momina\n&\nNizaj",
-              //     guestName: guestName,
-              //     screenHeight: MediaQuery.sizeOf(context).height,
-              //   ),
-              // ),
-              // SliverToBoxAdapter(
-              //   child: Stack(
-              //     children: [
-              //       // --- SECTION 3 (Bottom Layer / Drawn First) ---
-              //       Padding(
-              //             padding: const EdgeInsets.only(top: 320),
-              //             child: ClipPath(
-              //               clipper: TestClipper(
-              //                 clipTop: true,
-              //                 clipBottom: true,
-              //               ),
-              //               child: Container(
-              //                 height: 200,
-              //                 color: const Color(0xffe1f8e9),
-              //                 child: const Center(child: Text("Section 3")),
-              //               ),
-              //             ),
-              //           )
-              //           .animate()
-              //           .fadeIn(duration: 600.ms, delay: 800.ms) // Starts last
-              //           .slideY(begin: 0.2, end: 0, curve: Curves.easeOutCubic),
-
-              //       // --- SECTION 2 (Middle Layer) ---
-              //       Padding(
-              //             padding: const EdgeInsets.only(top: 160),
-              //             child: ClipPath(
-              //               clipper: TestClipper(
-              //                 clipTop: true,
-              //                 clipBottom: true,
-              //               ),
-              //               child: Container(
-              //                 height: 200,
-              //                 color: const Color(0xfff8e1f0),
-              //                 child: const Center(child: Text("Section 2")),
-              //               ),
-              //             ),
-              //           )
-              //           .animate()
-              //           .fadeIn(
-              //             duration: 600.ms,
-              //             delay: 400.ms,
-              //           ) // Starts second
-              //           .slideY(begin: 0.2, end: 0, curve: Curves.easeOutCubic),
-
-              //       // --- SECTION 1 (Top Layer / Drawn Last) ---
-              //       ClipPath(
-              //             clipper: TestClipper(clipTop: true, clipBottom: true),
-              //             child: Container(
-              //               height: 200,
-              //               color: const Color(0xff045622),
-              //               child: const Center(
-              //                 child: Text(
-              //                   "Section 1",
-              //                   style: TextStyle(color: Colors.white),
-              //                 ),
-              //               ),
-              //             ),
-              //           )
-              //           .animate()
-              //           .fadeIn(
-              //             duration: 600.ms,
-              //             delay: 0.ms,
-              //           ) // Starts immediately
-              //           .slideY(begin: 0.2, end: 0, curve: Curves.easeOutCubic),
-              //     ],
-              //   ),
-              // ),
-              // SliverToBoxAdapter(
-              //   child: Stack(
-              //     children: [
-              //       // --- SECTION 1 (Top Layer) ---
-              //       ClipPath(
-              //         clipper: TestClipper(clipTop: true, clipBottom: true),
-              //         child: Container(
-              //           height: 200,
-              //           color: const Color(0xff045622),
-              //           child: const Center(
-              //             child: Text(
-              //               "Section 1",
-              //               style: TextStyle(color: Colors.white),
-              //             ),
-              //           ),
-              //         ),
-              //       ),
-
-              //       // --- SECTION 2 (Middle Layer) ---
-              //       Padding(
-              //         padding: const EdgeInsets.only(
-              //           top: 160,
-              //         ), // Section1 Height - waveHeight
-              //         child: ClipPath(
-              //           clipper: TestClipper(clipTop: true, clipBottom: true),
-              //           child: Container(
-              //             height: 200,
-              //             color: const Color(0xfff8e1f0),
-              //             child: const Center(child: Text("Section 2")),
-              //           ),
-              //         ),
-              //       ),
-              //       // --- SECTION 3 (Bottom Layer) ---
-              //       // Positioned at the bottom, so it sits behind everything
-              //       Padding(
-              //         padding: const EdgeInsets.only(
-              //           top: 320,
-              //         ), // (Section1 Height + Section2 Height) - (2 * waveHeight)
-              //         child: ClipPath(
-              //           clipper: TestClipper(clipTop: true, clipBottom: true),
-              //           child: Container(
-              //             height: 200,
-              //             color: const Color(0xffe1f8e9),
-              //             child: const Center(child: Text("Section 3")),
-              //           ),
-              //         ),
-              //       ),
-              //     ],
-              //   ),
-              // ),
-              // SliverToBoxAdapter(
-              //   child: Stack(
-              //     children: [
-              //       _buildAnimatedSection(
-              //         delay: 0, // Starts first
-              //         topPadding: 0,
-              //         color: const Color(0xff045622),
-              //         text: "Section 1",
-              //         textColor: Colors.white,
-              //         clipper: TestClipper(clipTop: true, clipBottom: true),
-              //       ),
-              //       _buildAnimatedSection(
-              //         delay: 300, // Starts second
-              //         topPadding: 160,
-              //         color: const Color(0xfff8e1f0),
-              //         text: "Section 2",
-              //         clipper: TestClipper(clipTop: true, clipBottom: true),
-              //       ),
-              //       // SECTION 3
-              //       _buildAnimatedSection(
-              //         delay: 600, // Starts last
-              //         topPadding: 320,
-              //         color: const Color(0xffe1f8e9),
-              //         text: "Section 3",
-              //         clipper: TestClipper(clipTop: true, clipBottom: true),
-              //       ),
-
-              //       // SECTION 2
-
-              //       // SECTION 1
-              //     ],
-              //   ),
-              // ),
-
-              /// --- EVENTS SECTION ---
-              ///
-              // SliverToBoxAdapter(
-              //   child: Column(
-              //     children: [
-              //       // SECTION 1: Green (Only clip bottom)
-              //       ClipPath(
-              //         clipper: TestClipper(clipTop: true, clipBottom: true),
-              //         child: Container(
-              //           height: 200,
-              //           color: const Color(0xff045622),
-              //           child: const Center(
-              //             child: Text(
-              //               "Section 1",
-              //               style: TextStyle(color: Colors.white),
-              //             ),
-              //           ),
-              //         ),
-              //       ),
-
-              //       // // GAP FILLER: Pull the next item UP by the waveHeight
-              //       // const SizedBox(height: -20),
-
-              //       // SECTION 2: Pink (Clip top AND bottom)
-              //       ClipPath(
-              //         clipper: TestClipper(clipTop: true, clipBottom: true),
-              //         child: Container(
-              //           height: 200,
-              //           color: const Color(0xfff8e1f0),
-              //           child: const Center(child: Text("Section 2")),
-              //         ),
-              //       ),
-
-              //       // const SizedBox(height: -20),
-
-              //       // SECTION 3: Light Green (Clip top, maybe not bottom)
-              //       ClipPath(
-              //         clipper: TestClipper(clipTop: true, clipBottom: true),
-              //         child: Container(
-              //           height: 200,
-              //           color: const Color(0xffe1f8e9),
-              //           child: const Center(child: Text("Section 3")),
-              //         ),
-              //       ),
-              //     ],
-              //   ),
-              // ),
-              SliverToBoxAdapter(
-                child: StaggeredSlideEntrance(
-                  delay: Duration(milliseconds: 0),
-
-                  child: Container(
-                    key: _eventsKey,
-                    color: const Color(0xFFF7E7EF),
-                    child: PremiumExpandableSection(
-                      title: "Events",
-                      sectionColor: Colors.white,
-                      nextSectionColor: const Color(0xFFECFFF3),
-                      previousSectionColor: Colors.white, // Color of TopHeader
-                      currentSectionColor: const Color(0xFFF7E7EF), // Pink
-                      countText: eventsAsync.maybeWhen(
-                        data: (e) => "${e.length}",
-                        orElse: () => "0",
-                      ),
-                      initiallyExpanded: false, // Keep events open by default
-                      collapsedPreview: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "View the events you are invited to",
-                            textAlign: TextAlign.left,
-                            style: TextStyle(
-                              color: Color(0xFF06471D),
-                              fontFamily: 'SFPRO',
-                            ),
-                          ),
-                        ],
-                      ),
-                      onExpansionChanged: (expanded) {
-                        log('key :$_eventsKey  ; expanded ? $expanded');
-
-                        _scrollToSection(_eventsKey, expanded);
-                        // _scrollToEvents();
-                      },
-                      expandedContent: Column(
-                        children: [
-                          // Your existing Events Horizontal ListView code here
-                          Container(
-                            height: 420,
-                            color: const Color(0xFFF7E7EF),
-                            child: eventsAsync.when(
-                              loading: () => const _EventCardSkeleton(),
-                              error: (e, _) =>
-                                  _ErrorInline(message: e.toString()),
-                              data: (events) => ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                ),
-                                itemCount: events.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(width: 14),
-                                itemBuilder: (context, i) {
-                                  final ev = events[i];
-                                  final theme = _EventTheme.fromType(
-                                    ev.title.toLowerCase(),
-                                  );
-
-                                  return SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width *
-                                        0.82,
-                                    child: FlipOnAppear(
-                                      enabled: i == 0,
-                                      child: OpenContainer(
-                                        transitionType:
-                                            ContainerTransitionType.fadeThrough,
-                                        transitionDuration: const Duration(
-                                          milliseconds: 700,
-                                        ),
-                                        closedElevation: 0,
-                                        openElevation: 0,
-                                        closedColor: Colors.transparent,
-                                        openColor: theme.cardBg,
-
-                                        middleColor:
-                                            theme.cardBg, // buttery morph
-                                        closedShape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            19,
-                                          ), // MUST match card
-                                        ),
-                                        openShape: const RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.zero,
-                                        ),
-                                        closedBuilder: (context, open) {
-                                          return _EventCard(
-                                            title: ev.title,
-                                            bgColor: theme.cardBg,
-                                            textColor: theme.titleColor,
-                                            image: theme.image,
-                                            dateText: ev.dateTime == null
-                                                ? null
-                                                : DateFormat(
-                                                    "dd MMM yyyy",
-                                                  ).format(ev.dateTime!),
-                                            timeText: ev.dateTime == null
-                                                ? null
-                                                : DateFormat(
-                                                    "h:mm a",
-                                                  ).format(ev.dateTime!),
-                                            venueText: ev.venue,
-                                            onTap:
-                                                open, // ✅ container transform open
-                                          );
-                                        },
-                                        openBuilder: (context, close) {
-                                          final content =
-                                              EventContentRegistry.forTitle(
-                                                ev.title,
-                                              );
-                                          return EventDetailsScreenV1(
-                                            eventTitle: ev.title,
-                                            venue: ev.venue,
-                                            dateTime: ev.dateTime!,
-                                            description:
-                                                "Traditionally, the ladies apply mehendi and yes, you can add a little mehendi for the bride and groom too.",
-                                            detailsHeadline:
-                                                "A cozy mehendi night\nwith our closest people.",
-                                            locationTitle:
-                                                ev.venue ?? "Levant Park",
-                                            locationSubtitle:
-                                                "AlRuwayyah 3 - After Dubai Government Workshop.\nUAE, Dubai",
-                                            locationImageUrl:
-                                                "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1400",
-                                            headerBgColor: theme.cardBg,
-                                            accentGold: const Color(0xFFE2A56A),
-                                            onBack:
-                                                close, // ✅ closes the container transform
-                                            content: content,
-                                            eventIcon: theme.image,
-                                            textColor: theme.titleColor,
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 40),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: _ViewAllButton(onTap: () {}),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+              SliverPersistentHeader(
+                pinned: false,
+                floating: false,
+                delegate: _IntroHeaderDelegate(
+                  coupleTitle: "Momina\n&\nNizaj",
+                  guestName: guestName,
+                  screenHeight: MediaQuery.sizeOf(context).height,
+                  scrollController: _scrollController,
                 ),
               ),
-
-              /// --- OUTFIT INSPIRATIONS SECTION ---
+              // SliverToBoxAdapter(child: SizedBox(height: 50)),
               SliverToBoxAdapter(
-                child: StaggeredSlideEntrance(
-                  delay: Duration(milliseconds: 0),
-                  // delay: const Duration(milliseconds: 0),
-                  child: Container(
-                    key: _outfitKey,
-                    color: const Color(0xFFECFFF3),
-                    child: PremiumExpandableSection(
-                      nextSectionColor: Colors.green,
-                      previousSectionColor: const Color(
-                        0xFFF7E7EF,
-                      ), // Matches Events
-                      currentSectionColor: const Color(
-                        0xFFECFFF3,
-                      ), // Mint Green
-                      sectionColor: const Color(0xFFECFFF3), // Mint
-                      title: "Outfit inspirations",
-                      collapsedPreview: Row(
-                        children: [
-                          const Text("Explore styles for Men, Women & Kids"),
-                          const Spacer(),
-                          // Small thumbnails could go here
-                        ],
-                      ),
-                      onExpansionChanged: (expanded) {
-                        _scrollToSection(_outfitKey, expanded);
-                      },
-
-                      expandedContent: OutfitInspirationsSection(
-                        onWomenTap: () {
-                          const tag = "outfit-hero-women";
-                          Navigator.of(context).push(
-                            _outfitInspoRoute(
-                              initialTab: OutfitTab.women,
-                              heroTag: tag,
-                              eventTitle: 'mehendi',
-                            ),
-                          );
-                        },
-                        onMenTap: () {
-                          const tag = "outfit-hero-men";
-                          Navigator.of(context).push(
-                            _outfitInspoRoute(
-                              initialTab: OutfitTab.men,
-                              heroTag: tag,
-                              eventTitle: 'mehendi',
-                            ),
-                          );
-                        },
-                        onKidsTap: () {
-                          const tag = "outfit-hero-kid";
-                          Navigator.of(context).push(
-                            _outfitInspoRoute(
-                              initialTab: OutfitTab.kids,
-                              heroTag: tag,
-                              eventTitle: 'mehendi',
-                            ),
-                          );
-                        },
-                        onViewAllTap: () {
-                          const tag = "outfit-hero-women";
-                          Navigator.of(context).push(
-                            _outfitInspoRoute(
-                              initialTab: OutfitTab.women,
-                              heroTag: tag,
-                              eventTitle: 'mehendi',
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              /// --- OUTFIT INSPIRATIONS SECTION ---
-              SliverToBoxAdapter(
-                child: StaggeredSlideEntrance(
-                  delay: Duration(milliseconds: 0),
-                  child: Container(
-                    color: Color(0xffFFFCE5),
-                    key: _giftsKey,
-                    child: PremiumExpandableSection(
-                      initiallyExpanded: true,
-                      sectionColor: Colors.green,
-                      previousSectionColor: const Color(
-                        0xFFECFFF3,
-                      ), // Matches Outfits
-                      currentSectionColor: Color(0xffFFFCE5), // Solid Green
-                      nextSectionColor: Colors.white,
-                      title: "Gift Registry",
-                      titleColor: Color(0xffDE5656),
-
-                      collapsedPreview: Row(
-                        children: [
-                          const Text(""),
-                          const Spacer(),
-                          // Small thumbnails could go here
-                        ],
-                      ),
-
-                      expandedContent: Container(
-                        color: const Color(0xffFFFCE5),
-                        // padding: const EdgeInsets.symmetric(
-                        //   horizontal: 24,
-                        //   vertical: 16,
-                        // ),
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 16,
-                              ),
-                              child: Column(
-                                children: [
-                                  // 1. Your Presence (Static message - no arrow)
-                                  GiftCard(
-                                    color: const Color(
-                                      0xffDE5656,
-                                    ), // Matching Coral
-                                    icon: Icons.favorite,
-                                    heroTag: 'gift-money',
-                                    title: "Your Presence",
-                                    description:
-                                        "Honestly, your presence is the best gift. Come celebrate with us, that's all we want.",
-                                    showArrow: false,
-                                    onTap: () {}, // Decorative only
-                                  ),
-                                  const SizedBox(height: 14),
-
-                                  // 2. Gift Fund (Interactive)
-                                  GiftCard(
-                                    color: const Color(
-                                      0xff045622,
-                                    ), // Matching Emerald
-                                    icon: Icons.redeem_outlined,
-                                    title: "Gift Fund",
-                                    heroTag: 'gift-fund',
-                                    description:
-                                        "If you'd like to gift something, you can add to our fund. We'll put it towards something we'll use and love.",
-                                    showArrow: true,
-                                    onTap: () {
-                                      // TODO: Navigate to Gift Fund Details
-
-                                      Navigator.of(context).push(
-                                        _outfitInspoRouteGift(
-                                          initialTab: OutfitTab.women,
-                                          heroTag: 'gift-fund',
-                                          eventTitle: 'mehendi',
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(height: 14),
-
-                                  // 3. Cash Gift (Interactive)
-                                  GiftCard(
-                                    color: const Color(
-                                      0xff771549,
-                                    ), // Matching Plum
-                                    icon: Icons.account_balance_wallet_outlined,
-                                    title: "Cash Gift",
-                                    heroTag: 'gift-card',
-                                    description:
-                                        "If a cash gift feels easiest, you can transfer it here. It'll go towards wedding/home things we're setting up.",
-                                    showArrow: true,
-                                    onTap: () {
-                                      Navigator.of(context).push(
-                                        _outfitInspoRouteCashGift(
-                                          initialTab: OutfitTab.women,
-                                          heroTag: 'gift-fund',
-                                          eventTitle: 'mehendi',
-                                        ),
-                                      );
-                                      // TODO: Navigate to Cash Gift Details
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(height: 20),
-                            Align(
-                              alignment: Alignment.bottomRight,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(999),
-                                onTap: () {},
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFDE5656),
-                                    borderRadius: BorderRadius.only(
-                                      topLeft: Radius.circular(100),
-                                      bottomLeft: Radius.circular(100),
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        blurRadius: 14,
-                                        offset: const Offset(0, 10),
-                                        color: Colors.black.withOpacity(0.18),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        "View All",
-                                        style: TextStyle(
-                                          fontFamily: 'SFPRO',
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      SizedBox(width: 8),
-                                      Icon(
-                                        Icons.arrow_forward_rounded,
-                                        size: 18,
-                                        color: Colors.white,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 200),
-                          ],
+                child: Transform.translate(
+                  offset: Offset(0, -30.h),
+                  child: Column(
+                    children: [
+                      // --- SECTION 3 (Bottom Layer / Drawn First) ---
+                      ClipPath(
+                        clipper: TestClipper(clipTop: true, clipBottom: true),
+                        child: Container(
+                          key: _eventsKey,
+                          child: buildGalleryContent(context, ref, eventsAsync),
                         ),
                       ),
-                      onExpansionChanged: (isExpanded) {
-                        _scrollToSection(_giftsKey, isExpanded);
-                      },
-                    ),
+
+                      // .animate()
+                      // .fadeIn(duration: 600.ms, delay: 0.ms) // Starts last
+                      // .slideY(begin: 0.2, end: 0, curve: Curves.easeOutCubic),
+                      Transform.translate(
+                        offset: Offset(0, -34.h),
+                        child: ClipPath(
+                          clipper: TestClipper(clipTop: true, clipBottom: true),
+
+                          child: StaggeredSlideEntrance(
+                            delay: Duration(milliseconds: 200),
+                            child: Container(
+                              key: _galleryKey,
+                              child: buildEventsContent(eventsAsync),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // --- SECTION 2 (Middle Layer) ---
+                      Transform.translate(
+                        offset: Offset(0, -68.h),
+                        child: ClipPath(
+                          clipper: TestClipper(clipTop: true, clipBottom: true),
+
+                          child: StaggeredSlideEntrance(
+                            delay: Duration(milliseconds: 400),
+                            child: Container(
+                              key: _outfitKey,
+                              child: buildOutfitWidget(context),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // --- SECTION 1 (Top Layer / Drawn Last) ---
+                      Transform.translate(
+                        offset: Offset(0, -102.h),
+                        child: ClipPath(
+                          clipper: TestClipper(clipTop: true, clipBottom: true),
+                          child: StaggeredSlideEntrance(
+                            delay: Duration(milliseconds: 600),
+                            child: Container(
+                              key: _giftsKey,
+                              child: buildGiftWidget(context),
+                            ),
+                          ),
+                        ),
+                        // .animate()
+                        // .fadeIn(
+                        //   duration: 600.ms,
+                        //   delay: 600.ms,
+                        // ) // Starts immediately
+                        // .slideY(
+                        //   begin: 0.2,
+                        //   end: 0,
+                        //   curve: Curves.easeOutCubic,
+                        // ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-
-              // / ---------------- EVENTS ----------------
-              // /
-              // SliverToBoxAdapter(
-              //   child: Container(
-              //     key: _eventsKey,
-              //     color: const Color(0xFFF7E7EF),
-              //     padding: const EdgeInsets.fromLTRB(0, 44, 0, 0),
-              //     child: Column(
-              //       crossAxisAlignment: CrossAxisAlignment.start,
-              //       children: [
-              //         eventsAsync.when(
-              //           loading: () =>
-              //               _EventsHeader(countText: "…", onArrowTap: () {}),
-              //           error: (_, __) =>
-              //               _EventsHeader(countText: "!", onArrowTap: () {}),
-              //           data: (events) => _EventsHeader(
-              //             countText: "${events.length}",
-              //             onArrowTap: _scrollToEvents,
-              //           ),
-              //         ),
-
-              //         const SizedBox(height: 33),
-
-              //         eventsAsync.when(
-              //           loading: () => const _EventCardSkeleton(),
-              //           error: (e, _) => _ErrorInline(message: e.toString()),
-              //           data: (events) {
-              //             if (events.isEmpty) {
-              //               return const _EmptyInline(
-              //                 title: "No events marked as going.",
-              //                 subtitle:
-              //                     "If you already RSVP’d, it may not be updated yet.",
-              //               );
-              //             }
-
-              //             return Column(
-              //               children: [
-              //                 SizedBox(
-              //                   height: 420,
-
-              //                   child: ListView.separated(
-              //                     scrollDirection: Axis.horizontal,
-              //                     padding: const EdgeInsets.only(
-              //                       left: 20,
-              //                       right: 8,
-              //                     ),
-              //                     itemCount: events.length,
-              //                     separatorBuilder: (_, __) =>
-              //                         const SizedBox(width: 14),
-              //                     itemBuilder: (context, i) {
-              //                       final ev = events[i];
-              //                       final theme = _EventTheme.fromType(
-              //                         ev.title.toLowerCase(),
-              //                       );
-
-              //                       return SizedBox(
-              //                         width:
-              //                             MediaQuery.of(context).size.width *
-              //                             0.82,
-              //                         child: FlipOnAppear(
-              //                           enabled: i == 0, // 👌 premium touch
-              //                           child: _EventCard(
-              //                             title: ev.title,
-              //                             bgColor: theme.cardBg,
-              //                             textColor: theme.titleColor,
-              //                             image: theme.image,
-              //                             dateText: ev.dateTime == null
-              //                                 ? null
-              //                                 : DateFormat(
-              //                                     "dd MMM yyyy",
-              //                                   ).format(ev.dateTime!),
-              //                             timeText: ev.dateTime == null
-              //                                 ? null
-              //                                 : DateFormat(
-              //                                     "h:mm a",
-              //                                   ).format(ev.dateTime!),
-              //                             venueText: ev.venue,
-              //                             onTap: () {
-              //                               Navigator.push(
-              //                                 context,
-              //                                 MaterialPageRoute(
-              //                                   builder: (_) =>
-              //                                       EventDetailsScreenV1(
-              //                                         eventTitle: ev.title,
-              //                                         venue: ev.venue,
-              //                                         dateTime: ev.dateTime!,
-              //                                         description:
-              //                                             '', // if you have
-              //                                         dressCodeTitle:
-              //                                             '', // if you have
-              //                                         dressCodeNotes:
-              //                                             '', // if you have
-              //                                         heroImageAsset: null,
-              //                                         onDirectionsTap: () {},
-              //                                         onImGoingTap: () {},
-              //                                         onNotGoingTap: () {},
-              //                                       ),
-              //                                 ),
-              //                               );
-              //                             },
-              //                           ),
-              //                         ),
-              //                       );
-              //                     },
-              //                   ),
-              //                 ),
-
-              //                 const SizedBox(height: 18),
-
-              //                 Align(
-              //                   alignment: Alignment.centerRight,
-              //                   child: _ViewAllButton(onTap: () {}),
-              //                 ),
-
-              //                 const SizedBox(height: 25),
-
-              //                 const WaveSeparator(
-              //                   topColor: Color(0xFFF7E7EF),
-              //                   bottomColor: Color(0xFFEAF7F0),
-              //                 ),
-              //               ],
-              //             );
-              //           },
-              //         ),
-              //       ],
-              //     ),
-              //   ),
-              // ),
-
-              // /// ---------------- OUTFIT INSPIRATIONS ----------------
-              // SliverToBoxAdapter(
-              //   child: OutfitInspirationsSection(
-              //     onWomenTap: () {},
-              //     onMenTap: () {},
-              //     onKidsTap: () {},
-              //     onViewAllTap: () {},
-              //   ),
-              // ),
             ],
           );
         },
       ),
     );
   }
-}
 
-class _TopHeader extends StatelessWidget {
-  const _TopHeader({required this.coupleTitle, required this.guestName});
+  PremiumExpandableSection buildGiftWidget(BuildContext context) {
+    return PremiumExpandableSection(
+      initiallyExpanded: false,
+      sectionColor: Colors.green,
+      previousSectionColor: const Color(0xFFECFFF3), // Matches Outfits
+      currentSectionColor: Color(0xffFFFCE5), // Solid Green
+      nextSectionColor: Colors.white,
+      title: "Gift Registry",
+      titleColor: Color(0xffDE5656),
 
-  final String coupleTitle;
-  final String guestName;
+      collapsedPreview: Row(
+        children: [
+          const Text(""),
+          const Spacer(),
+          // Small thumbnails could go here
+        ],
+      ),
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Floral image area
-        SizedBox(
-          height: 315,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Image.asset(
-                  alignment: Alignment.topCenter,
-                  "assets/images/vector_header.png", // <-- your exact header image
-                  fit: BoxFit.cover,
-                ),
-              ),
-
-              Positioned.fill(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: ClipPath(
-                    clipper: _TopWaveClipper(),
-                    child: Container(height: 80, color: Colors.white),
-                  ),
-                ),
-              ),
-
-              // Scallop badge
-              Align(
-                alignment: Alignment.center,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 18),
-                  child: _ScallopBadge(
-                    text: coupleTitle,
-                    color: const Color(0xFF8B2B57),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // White greeting section
-        Container(
-              width: double.infinity,
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+      expandedContent: Container(
+        color: const Color(0xffFFFCE5),
+        // padding: const EdgeInsets.symmetric(
+        //   horizontal: 24,
+        //   vertical: 16,
+        // ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Column(
                 children: [
-                  Text(
-                    "Hello",
-                    style: TextStyle(
-                      color: const Color(0xFF06471D),
-                      fontSize: 14,
-                      fontFamily: 'SFPRO',
-                      fontWeight: FontWeight.w500,
-                    ),
+                  // 1. Your Presence (Static message - no arrow)
+                  GiftCard(
+                    color: const Color(0xffDE5656), // Matching Coral
+                    icon: 'assets/images/heart.json',
+                    heroTag: 'gift-money',
+                    title: "Your Presence",
+                    description:
+                        "Your presence is the greatest gift, all we want is to celebrate with you!",
+                    showArrow: false,
+                    onTap: () {}, // Decorative only
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    guestName,
-                    style: const TextStyle(
-                      color: Color(0xFF06471D),
-                      fontSize: 40,
+                  const SizedBox(height: 14),
 
-                      fontFamily: 'Montage',
+                  // 2. Gift Fund (Interactive)
+                  GiftCard(
+                    color: const Color(0xff045622), // Matching Emerald
+                    icon: 'assets/images/gift.json',
+                    title: "Gift Fund",
+                    heroTag: 'gift-fund',
+                    description:
+                        "If you'd like to gift something, you can add to our fund. We'll put it towards something we'll use and love.",
+                    showArrow: true,
+                    onTap: () {
+                      // TODO: Navigate to Gift Fund Details
 
-                      fontWeight: FontWeight.w400,
-                      // If you're using a serif font:
-                      // fontFamily: "YourSerifFont",
-                    ),
+                      Navigator.of(context).push(
+                        _outfitInspoRouteGift(
+                          initialTab: OutfitTab.women,
+                          heroTag: 'gift-fund',
+                          eventTitle: 'mehendi',
+                        ),
+                      );
+                    },
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "We’re so happy you’re here.",
-                    style: TextStyle(
-                      color: const Color(0xFF06471D),
-                      fontSize: 14,
-                      fontFamily: 'SFPRO',
-                      fontWeight: FontWeight.w400,
-                    ),
+                  const SizedBox(height: 14),
+
+                  // 3. Cash Gift (Interactive)
+                  GiftCard(
+                    color: const Color(0xff771549), // Matching Plum
+                    icon: 'assets/images/cash.json',
+                    title: "Cash Gift",
+                    heroTag: 'gift-card',
+                    description:
+                        "If a cash gift feels easiest, you can transfer it here. It'll go towards wedding/home things we're setting up.",
+                    showArrow: true,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        _outfitInspoRouteCashGift(
+                          initialTab: OutfitTab.women,
+                          heroTag: 'gift-fund',
+                          eventTitle: 'mehendi',
+                        ),
+                      );
+                      // TODO: Navigate to Cash Gift Details
+                    },
                   ),
-                  const SizedBox(height: 20),
                 ],
               ),
-            )
-            .animate()
-            .fadeIn(duration: 500.ms, curve: Curves.easeOutCubic)
-            .slideY(
-              begin: 0.25, // comes from bottom
-              end: 0,
-              duration: 600.ms,
-              curve: Curves.easeOutCubic,
             ),
-
-        // Wavy white -> pink transition
-        // const _WavyDivider(color: Colors.white, invert: false),
-        // const WaveSeparator(
-        //   topColor: Colors.white,
-        //   bottomColor: Color(0xFFF7E7EF),
-        // ),
-      ],
+            // SizedBox(height: 20),
+            // Align(
+            //   alignment: Alignment.bottomRight,
+            //   child: InkWell(
+            //     borderRadius: BorderRadius.circular(999),
+            //     onTap: () {},
+            //     child: Container(
+            //       padding: const EdgeInsets.symmetric(
+            //         horizontal: 18,
+            //         vertical: 12,
+            //       ),
+            //       decoration: BoxDecoration(
+            //         color: const Color(0xFFDE5656),
+            //         borderRadius: BorderRadius.only(
+            //           topLeft: Radius.circular(100),
+            //           bottomLeft: Radius.circular(100),
+            //         ),
+            //         // boxShadow: [
+            //         //   BoxShadow(
+            //         //     blurRadius: 14,
+            //         //     offset: const Offset(0, 10),
+            //         //     color: Colors.black.withOpacity(0.18),
+            //         //   ),
+            //         // ],
+            //       ),
+            //       child: const Row(
+            //         mainAxisSize: MainAxisSize.min,
+            //         children: [
+            //           Text(
+            //             "View All",
+            //             style: TextStyle(
+            //               fontFamily: 'SFPRO',
+            //               color: Colors.white,
+            //               fontWeight: FontWeight.w700,
+            //             ),
+            //           ),
+            //           SizedBox(width: 8),
+            //           Icon(
+            //             Icons.arrow_forward_rounded,
+            //             size: 18,
+            //             color: Colors.white,
+            //           ),
+            //         ],
+            //       ),
+            //     ),
+            //   ),
+            // ),
+            SizedBox(height: 30),
+          ],
+        ),
+      ),
+      onExpansionChanged: (isExpanded) {
+        _scrollToSection(_giftsKey, isExpanded);
+      },
     );
   }
-}
 
-class _WavyDivider extends StatelessWidget {
-  const _WavyDivider({required this.color, required this.invert});
+  PremiumExpandableSection buildOutfitWidget(BuildContext context) {
+    return PremiumExpandableSection(
+      nextSectionColor: Colors.green,
+      previousSectionColor: const Color(0xFFF7E7EF), // Matches Events
+      currentSectionColor: const Color(0xFFECFFF3), // Mint Green
+      sectionColor: const Color(0xFFECFFF3), // Mint
+      title: "Outfit inspirations",
+      collapsedPreview: Row(
+        children: [
+          const Text("Explore styles for Men, Women & Kids"),
+          const Spacer(),
+          // Small thumbnails could go here
+        ],
+      ),
+      onExpansionChanged: (expanded) {
+        _scrollToSection(_outfitKey, expanded);
+      },
 
-  final Color color;
-  final bool invert;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipPath(
-      clipper: _WaveClipper(invert: invert),
-      child: Container(height: 42, color: color),
+      expandedContent: OutfitInspirationsSection(
+        onWomenTap: () {
+          const tag = "outfit-hero-women";
+          Navigator.of(context).push(
+            _outfitInspoRoute(
+              initialTab: OutfitTab.women,
+              heroTag: tag,
+              eventTitle: 'mehendi',
+            ),
+          );
+        },
+        onMenTap: () {
+          const tag = "outfit-hero-men";
+          Navigator.of(context).push(
+            _outfitInspoRoute(
+              initialTab: OutfitTab.men,
+              heroTag: tag,
+              eventTitle: 'mehendi',
+            ),
+          );
+        },
+        onKidsTap: () {
+          const tag = "outfit-hero-kid";
+          Navigator.of(context).push(
+            _outfitInspoRoute(
+              initialTab: OutfitTab.kids,
+              heroTag: tag,
+              eventTitle: 'mehendi',
+            ),
+          );
+        },
+        onViewAllTap: () {
+          const tag = "outfit-hero-women";
+          Navigator.of(context).push(
+            _outfitInspoRoute(
+              initialTab: OutfitTab.women,
+              heroTag: tag,
+              eventTitle: 'mehendi',
+            ),
+          );
+        },
+      ),
     );
   }
-}
 
-class _WaveClipper extends CustomClipper<Path> {
-  _WaveClipper({required this.invert});
-  final bool invert;
-
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    if (!invert) {
-      // wave at bottom edge
-      path.lineTo(0, size.height - 16);
-      path.quadraticBezierTo(
-        size.width * 0.25,
-        size.height,
-        size.width * 0.5,
-        size.height - 14,
-      );
-      path.quadraticBezierTo(
-        size.width * 0.75,
-        size.height - 28,
-        size.width,
-        size.height - 10,
-      );
-      path.lineTo(size.width, 0);
-      path.close();
-    } else {
-      // wave at top edge (if you ever need it)
-      path.moveTo(0, 16);
-      path.quadraticBezierTo(size.width * 0.25, 0, size.width * 0.5, 14);
-      path.quadraticBezierTo(size.width * 0.75, 28, size.width, 10);
-      path.lineTo(size.width, size.height);
-      path.lineTo(0, size.height);
-      path.close();
-    }
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
-class _EventsHeader extends StatelessWidget {
-  final String countText;
-  final VoidCallback onArrowTap;
-
-  const _EventsHeader({required this.countText, required this.onArrowTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 28, left: 20),
-      child: Row(
+  PremiumExpandableSection buildEventsContent(
+    AsyncValue<List<WeddingEventModel>> eventsAsync,
+  ) {
+    return PremiumExpandableSection(
+      title: "Your events",
+      sectionColor: Colors.white,
+      nextSectionColor: const Color(0xFFECFFF3),
+      previousSectionColor: Colors.white, // Color of TopHeader
+      currentSectionColor: const Color(0xFFF7E7EF), // Pink
+      countText: eventsAsync.maybeWhen(
+        data: (e) => "${e.length}",
+        orElse: () => "0",
+      ),
+      initiallyExpanded: false, // Keep events open by default
+      collapsedPreview: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           const Text(
-            "Events",
-            style: TextStyle(
-              color: Color(0xFF06471D),
-              fontSize: 40,
-              fontFamily: 'Montage',
-              height: 1.0,
-              fontWeight: FontWeight.w500,
-              // fontFamily: "YourSerifFont",
+            "View your events",
+            textAlign: TextAlign.left,
+            style: TextStyle(color: Color(0xFF06471D), fontFamily: 'SFPRO'),
+          ),
+        ],
+      ),
+      onExpansionChanged: (expanded) {
+        log('key :$_eventsKey  ; expanded ? $expanded');
+
+        _scrollToSection(_eventsKey, expanded);
+        // _scrollToEvents();
+      },
+      expandedContent: Column(
+        children: [
+          // Your existing Events Horizontal ListView code here
+          Container(
+            height: 420,
+            color: const Color(0xFFF7E7EF),
+            child: eventsAsync.when(
+              loading: () => const _EventCardSkeleton(),
+              error: (e, _) => _ErrorInline(message: e.toString()),
+              data: (events) => ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                itemCount: events.length,
+                separatorBuilder: (_, __) => SizedBox(width: 14.w),
+                itemBuilder: (context, i) {
+                  final ev = events[i];
+                  final theme = _EventTheme.fromType(ev.title.toLowerCase());
+
+                  log('title : ${ev.title} - countdown : ${ev.countdownText}');
+
+                  return SizedBox(
+                    width: MediaQuery.of(context).size.width.w * 0.82.w,
+                    child: FlipOnAppear(
+                      enabled: i == 0,
+                      child: OpenContainer(
+                        transitionType: ContainerTransitionType.fadeThrough,
+                        transitionDuration: const Duration(milliseconds: 700),
+                        closedElevation: 0,
+                        openElevation: 0,
+                        closedColor: Colors.transparent,
+                        openColor: theme.cardBg,
+
+                        middleColor: theme.cardBg, // buttery morph
+                        closedShape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            19.r,
+                          ), // MUST match card
+                        ),
+                        openShape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
+                        ),
+                        closedBuilder: (context, open) {
+                          return EventCard(
+                            title: ev.title,
+                            bgColor: theme.cardBg,
+                            textColor: theme.titleColor,
+                            image: theme.image,
+                            dateText: ev.dateTime == null
+                                ? null
+                                : DateFormat(
+                                    "dd MMM yyyy",
+                                  ).format(ev.dateTime!),
+                            timeText: ev.dateTime == null
+                                ? null
+                                : ev.formattedTime,
+                            venueText: ev.venue,
+                            onTap: open, // ✅ container transform open
+                          );
+                        },
+                        openBuilder: (context, close) {
+                          final content = EventContentRegistry.forTitle(
+                            ev.title,
+                          );
+                          return EventDetailsScreenV1(
+                            eventTitle: ev.title,
+                            timeText: ev.formattedTime,
+                            venue: ev.venue,
+                            dateTime: ev.dateTime!,
+                            description:
+                                "Traditionally, the ladies apply mehendi and yes, you can add a little mehendi for the bride and groom too.",
+                            detailsHeadline:
+                                "A cozy mehendi night\nwith our closest people.",
+                            locationTitle: ev.venue ?? "Levant Park",
+                            locationSubtitle:
+                                "AlRuwayyah 3 - After Dubai Government Workshop.\nUAE, Dubai",
+                            locationImageUrl:
+                                "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1400",
+                            headerBgColor: theme.cardBg,
+                            accentGold: const Color(0xFFE2A56A),
+                            onBack: close, // ✅ closes the container transform
+                            content: content,
+                            eventIcon: theme.image,
+                            textColor: theme.titleColor,
+                            eventId: ev.id,
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-          const Spacer(),
+
+          const SizedBox(height: 10),
+          // Align(
+          //   alignment: Alignment.centerRight,
+          //   child: _ViewAllButton(onTap: () {}),
+          // ),
+        ],
+      ),
+    );
+  }
+
+  PremiumExpandableSection buildGalleryContent(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<List<WeddingEventModel>> eventsAsync,
+  ) {
+    final weddingId = ref.watch(activeWeddingIdProvider);
+
+    return PremiumExpandableSection(
+      title: "Memories Feed",
+      titleColor: Color(0xff482C77),
+      sectionColor: Colors.white,
+      nextSectionColor: Colors.white,
+      iconColor: Color(0xff482C77),
+      previousSectionColor: const Color(0xFFF7E7EF),
+      currentSectionColor: const Color(
+        0xFFF3EEFF,
+      ), // the lilac background you showed
+
+      // countText: eventsAsync.maybeWhen(
+      //   data: (e) => "${e.length}",
+      //   orElse: () => "0",
+      // ),
+      initiallyExpanded: true,
+      collapsedPreview: const Row(
+        children: [
           Text(
-            countText,
-            style: const TextStyle(
-              color: Color(0xFF1F4D35),
-              fontSize: 18,
-              fontFamily: 'SFPRO',
-              fontWeight: FontWeight.w700,
-            ),
+            "Watch the memories roll in as guests upload.",
+            style: TextStyle(color: Color(0xFF3D2B7A), fontFamily: 'SFPRO'),
           ),
-          GestureDetector(
-            onTap: onArrowTap,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeOut,
-              builder: (_, value, child) {
-                return Transform.rotate(
-                  angle: value * 3.14, // half rotation
-                  child: Opacity(opacity: 1 - (value * 0.3), child: child),
+        ],
+      ),
+      expandedContent: Container(
+        color: const Color(0xFFF3EEFF),
+        padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 10.h),
+        child: eventsAsync.when(
+          loading: () => const _GallerySkeletonRow(),
+          error: (e, _) => Text('Error: $e'),
+          data: (events) {
+            if (events.isEmpty) {
+              return const _EmptyGalleryState();
+            }
+
+            // 2-column grid “Albums”
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: events.length,
+              padding: EdgeInsets.only(top: 0),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 14.w,
+                mainAxisSpacing: 14.h,
+                childAspectRatio: 0.73, // tuned for your design
+              ),
+              itemBuilder: (context, i) {
+                final ev = events[i];
+                final theme = _EventTheme.fromType(ev.title.toLowerCase());
+
+                final previewAsync = ref.watch(
+                  eventGalleryPreviewProvider(ev.id),
+                );
+
+                return previewAsync.when(
+                  loading: () => _AlbumLoadingCard(
+                    title: ev.title,
+                    bg: theme.cardBg,
+                    fg: theme.titleColor,
+                  ),
+                  error: (_, __) => EventGalleryAlbumCard(
+                    weddingId: weddingId,
+                    eventId: ev.id,
+                    title: ev.title,
+                    bgColor: theme.cardBg,
+                    textColor: theme.titleColor,
+                    image: theme.image,
+                    imageCount: 0,
+                    videoCount: 0,
+                    previewUrls: const [],
+                  ),
+                  data: (p) => EventGalleryAlbumCard(
+                    weddingId: weddingId,
+                    eventId: ev.id,
+                    title: ev.title,
+                    bgColor: theme.cardBg,
+                    textColor: theme.titleColor,
+                    imageCount: p.imageCount,
+                    videoCount: p.videoCount,
+                    image: theme.image,
+                    previewUrls: p.previewUrls,
+                  ),
                 );
               },
-              child: const Icon(Icons.keyboard_arrow_down),
-            ),
-          ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// --- tiny placeholders ---
+class _GallerySkeletonRow extends StatelessWidget {
+  const _GallerySkeletonRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 190,
+      child: Row(
+        children: [
+          Expanded(child: _SkeletonBox()),
+          const SizedBox(width: 14),
+          Expanded(child: _SkeletonBox()),
         ],
       ),
     );
   }
 }
 
-class _EventCard extends StatelessWidget {
-  const _EventCard({
-    required this.title,
-    required this.dateText,
-    required this.timeText,
-    required this.venueText,
-    required this.onTap,
-    required this.bgColor,
-    required this.textColor,
-    required this.image,
-  });
+class _SkeletonBox extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 190,
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(22),
+      ),
+    );
+  }
+}
 
+class _EmptyGalleryState extends StatelessWidget {
+  const _EmptyGalleryState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+      ),
+      child: const Text(
+        "No event galleries yet. Once guests start uploading, you’ll see them here.",
+        style: TextStyle(
+          fontFamily: 'SFPRO',
+          color: Colors.black54,
+          height: 1.35,
+        ),
+      ),
+    );
+  }
+}
+
+class _AlbumLoadingCard extends StatelessWidget {
   final String title;
-  final String? dateText;
-  final String? timeText;
-  final String venueText;
-  final VoidCallback onTap;
-  final Color bgColor;
-  final Color textColor;
-  final String image;
+  final Color bg;
+  final Color fg;
 
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: onTap,
-      child: Container(
-        height: 420,
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(22, 22, 18, 18),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(22),
-          // boxShadow: [
-          //   BoxShadow(
-          //     blurRadius: 18,
-          //     offset: const Offset(0, 10),
-          //     color: Colors.black.withOpacity(0.22),
-          //   ),
-          // ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            title.toLowerCase() == 'nikah' || title.toLowerCase() == 'nikkah'
-                ? Image.asset(image)
-                : SvgPicture.asset(image),
-
-            const SizedBox(height: 18),
-
-            Text(
-              title,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 36,
-                fontFamily: 'Montage',
-                height: 1.0,
-                fontWeight: FontWeight.w500,
-                // fontFamily: "YourSerifFont",
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            InfoRow(
-              icon: Icons.calendar_month_rounded,
-              text: dateText ?? "-",
-              textColor: textColor,
-            ),
-            const SizedBox(height: 10),
-            InfoRow(
-              icon: Icons.access_time_rounded,
-              text: timeText == null ? "-" : "$timeText onwards",
-              textColor: textColor,
-            ),
-            const SizedBox(height: 10),
-            InfoRow(
-              icon: Icons.location_on_rounded,
-              text: venueText.isEmpty ? "-" : venueText,
-              textColor: textColor,
-            ),
-
-            const Spacer(),
-
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Container(
-                height: 42,
-                width: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Color(0xFFF4D9E6),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class InfoRow extends StatelessWidget {
-  const InfoRow({
-    required this.icon,
-    required this.text,
-    required this.textColor,
+  const _AlbumLoadingCard({
+    required this.title,
+    required this.bg,
+    required this.fg,
   });
-  final IconData icon;
-  final String text;
-  final Color textColor;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: textColor),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontFamily: 'SFPRO',
-              color: textColor,
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-            ),
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Align(
+        alignment: Alignment.bottomLeft,
+        child: Text(
+          title,
+          style: TextStyle(
+            color: fg,
+            fontFamily: 'Montage',
+            fontSize: 22,
+            fontWeight: FontWeight.w500,
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ViewAllButton extends StatelessWidget {
-  const _ViewAllButton({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF6F2041),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(100),
-            bottomLeft: Radius.circular(100),
-          ),
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 14,
-              offset: const Offset(0, 10),
-              color: Colors.black.withOpacity(0.18),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              "View All",
-              style: TextStyle(
-                fontFamily: 'SFPRO',
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            SizedBox(width: 8),
-            Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
-          ],
         ),
       ),
     );
   }
 }
 
-class _ScallopBadge extends StatelessWidget {
-  const _ScallopBadge({required this.text, required this.color});
+class ScallopBadge extends StatelessWidget {
+  const ScallopBadge({required this.text, required this.color});
   final String text;
   final Color color;
 
@@ -1544,27 +986,6 @@ class _ScallopBadge extends StatelessWidget {
   }
 }
 
-class _ScallopClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    // Simple scallop-like shape (premium enough + stable)
-    final path = Path();
-    final r = 18.0;
-
-    path.addRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        Radius.circular(r),
-      ),
-    );
-
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message});
   final String message;
@@ -1597,42 +1018,6 @@ class _ErrorInline extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(message, style: const TextStyle(color: Colors.red)),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.title, required this.subtitle});
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.info_outline_rounded, size: 42),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.black.withOpacity(0.6),
-                height: 1.35,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -1724,34 +1109,6 @@ class _EventTheme {
   }
 }
 
-class _EmptyInline extends StatelessWidget {
-  const _EmptyInline({required this.title, required this.subtitle});
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: TextStyle(color: Colors.black.withOpacity(0.6)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _EventCardSkeleton extends StatelessWidget {
   const _EventCardSkeleton();
 
@@ -1768,7 +1125,7 @@ class _EventCardSkeleton extends StatelessWidget {
   }
 }
 
-class _TopWaveClipper extends CustomClipper<Path> {
+class TopWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
@@ -1829,11 +1186,13 @@ class _IntroHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.coupleTitle,
     required this.guestName,
     required this.screenHeight,
+    required this.scrollController,
   });
 
   final String coupleTitle;
   final String guestName;
   final double screenHeight;
+  final ScrollController scrollController;
 
   // Collapsed height (no leaves, just header + text)
   // Tune this if you want slightly tighter/looser.
@@ -1882,639 +1241,590 @@ class _IntroHeaderDelegate extends SliverPersistentHeaderDelegate {
 
     return SizedBox(
       height: currentHeight,
-      child: Stack(
-        children: [
-          Positioned.fill(child: Container(color: Colors.white)),
+      child: ClipPath(
+        clipper: const InverseTestClipper(
+          clipBottom: true,
+          waveHeight: 20, // MUST match the widget below
+          amplitude: 15, // MUST match the widget below
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(child: Container(color: Colors.white)),
 
-          // Main content
-          Positioned.fill(
-            child: Column(
-              children: [
-                // Top floral header (same as your current)
-                SizedBox(
-                  height: _topHeaderHeight,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: Image.asset(
-                          "assets/images/vector_header.png",
-                          alignment: Alignment.topCenter,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned.fill(
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
-                          child: ClipPath(
-                            clipper: _TopWaveClipper(),
-                            child: Container(height: 80, color: Colors.white),
+            // Main content
+            Positioned.fill(
+              child: Column(
+                children: [
+                  // Top floral header (same as your current)
+                  SizedBox(
+                    height: _topHeaderHeight,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Image.asset(
+                            "assets/images/vector_header.png",
+                            alignment: Alignment.topCenter,
+                            fit: BoxFit.cover,
                           ),
                         ),
-                      ),
-                      Align(
-                        alignment: Alignment.center,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 18),
-                          child: _ScallopBadge(
-                            text: coupleTitle,
-                            color: const Color(0xFF8B2B57),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Remaining area (collapses naturally)
-                Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        child: Column(
-                          // mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 10),
-                            const Text(
-                              "Hello",
-                              style: TextStyle(
-                                color: green,
-                                fontSize: 14,
-                                fontFamily: 'SFPRO',
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              guestName,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: green,
-                                fontSize: 44,
-                                fontFamily: 'Montage',
-                                fontWeight: FontWeight.w400,
-                                height: 1.0,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              "We’re so happy you’re here.",
-                              style: TextStyle(
-                                color: green,
-                                fontSize: 14,
-                                fontFamily: 'SFPRO',
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            if (isVisible)
-                              Opacity(
-                                opacity: hintOpacity,
-                                child: Text.rich(
-                                  TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text: 'You’re in the ',
-                                        style: TextStyle(
-                                          color: const Color(0xFF06471D),
-                                          fontSize: 14,
-                                          fontFamily: 'SFPRO',
-                                          fontWeight: FontWeight.w500,
-                                          height: 1.71,
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text: 'pre-wedding ',
-                                        style: TextStyle(
-                                          color: const Color(0xFF06471D),
-                                          fontSize: 14,
-                                          fontFamily: 'SFPRO',
-                                          fontWeight: FontWeight.w700,
-                                          height: 1.71,
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text:
-                                            'chapter for now. \nThis will change as the celebrations begin',
-                                        style: TextStyle(
-                                          color: const Color(0xFF06471D),
-                                          fontSize: 14,
-                                          fontFamily: 'SFPRO',
-                                          fontWeight: FontWeight.w500,
-                                          height: 1.71,
-                                        ),
-                                      ),
-                                    ],
+                        Positioned.fill(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: TweenAnimationBuilder<double>(
+                              // begin is the starting point (80), end is the final state (60)
+                              tween: Tween<double>(begin: 50, end: 80),
+                              duration: const Duration(
+                                milliseconds: 800,
+                              ), // Adjust speed here
+                              curve: Curves
+                                  .easeOutBack, // Optional: adds a nice "bounce" effect
+                              builder: (context, value, child) {
+                                return ClipPath(
+                                  clipper: TopWaveClipper(),
+                                  child: Container(
+                                    height:
+                                        value, // This will animate from 80 down to 60 automatically
+                                    color: Colors.white,
                                   ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            SizedBox(height: lerpDouble(150, 0, t)!),
-
-                            // fades while collapsing
-                            if (isVisible)
-                              Opacity(
-                                opacity: hintOpacity,
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      "Scroll to discover more",
-                                      style: TextStyle(
-                                        color: Colors.black.withOpacity(0.68),
-                                        fontSize: 13,
-                                        fontFamily: 'SFPRO',
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Icon(
-                                      Icons.keyboard_arrow_down_rounded,
-                                      size: 22,
-                                      color: Colors.black.withOpacity(0.55),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                            // Space reserved only when leaves are visible.
-                            // When leavesOpacity -> 0, this effectively disappears.
-                            // SizedBox(height: lerpDouble(110, 0, t)!), // 👈 key
-                          ],
+                                );
+                              },
+                            ),
+                          ),
                         ),
-                      ),
-                    )
-                    .animate()
-                    .fadeIn(duration: 800.ms, curve: Curves.easeOut)
-                    .slideY(
-                      begin: 0.2, // Starts slightly lower (20% of its height)
-                      end: 0, // Ends at its natural position
-                      duration: 800.ms,
-                      curve: Curves.easeOutCubic,
+                        Align(
+                          alignment: Alignment.center,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 18),
+                            child: ScallopBadge(
+                              text: coupleTitle,
+                              color: const Color(0xFF8B2B57),
+                            ),
+                          ),
+                        ),
+
+                        Positioned(
+                          top: MediaQuery.of(context).padding.top + 10,
+                          right: 16,
+                          child: SettingsMenu(),
+                        ),
+                      ],
                     ),
-              ],
-            ),
-          ),
+                  ),
 
-          // ---- LEAVES LAYER (plays entrance once + fades out on scroll) ----
+                  // Remaining area (collapses naturally)
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 18.w),
+                      child: Column(
+                        children: [
+                          SizedBox(height: 10.sp),
+                          // 1. "Hello"
+                          Text(
+                                "Hello",
+                                style: TextStyle(
+                                  color: green,
+                                  fontSize: 14.sp,
+                                  fontFamily: 'SFPRO',
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              )
+                              .animate()
+                              .fadeIn(duration: 600.ms)
+                              .slideY(begin: 0.2, end: 0),
 
-          // LEFT leaf 1
-          Positioned(
-            left: 0,
-            bottom: 60,
-            child: Transform.translate(
-              offset: Offset(0, leavesSlideDown),
-              child: Opacity(
-                opacity: leavesOpacity,
-                child:
-                    Image.asset(
-                          "assets/images/left_leaf_1.png",
-                          height: 288,
-                          fit: BoxFit.contain,
-                        )
-                        .animate()
-                        // entrance: from bottom-left inside
-                        .slideX(
-                          begin: -0.35,
-                          end: 0,
-                          duration: 650.ms,
-                          curve: Curves.easeOutCubic,
-                        )
-                        .slideY(
-                          begin: 0.25,
-                          end: 0,
-                          duration: 650.ms,
-                          curve: Curves.easeOutCubic,
-                        )
-                        .fadeIn(duration: 450.ms),
-              ),
-            ),
-          ),
+                          SizedBox(height: 10.h),
+                          // 2. Guest Name (Delayed by 100ms)
+                          FittedBox(
+                            child:
+                                Text(
+                                      guestName,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: green,
+                                        fontSize: 44.sp,
+                                        fontFamily: 'Montage',
+                                        height: 1.0,
+                                      ),
+                                    )
+                                    .animate(delay: 100.ms)
+                                    .fadeIn(duration: 600.ms)
+                                    .slideY(begin: 0.2, end: 0),
+                          ),
 
-          // LEFT leaf 3
-          Positioned(
-            left: -40,
-            bottom: -30,
-            child:
-                Transform.translate(
-                      offset: Offset(0, leavesSlideDown),
-                      child: Opacity(
-                        opacity: leavesOpacity,
-                        child: Image.asset(
-                          "assets/images/left_leaf_3.png",
-                          height: 99,
-                          fit: BoxFit.contain,
-                        ),
+                          const SizedBox(height: 10),
+                          // 3. "We're so happy..." (Delayed by 200ms)
+                          Text(
+                                "We’re so happy you’re here!",
+                                style: TextStyle(
+                                  color: green,
+                                  fontSize: 14.sp,
+                                  fontFamily: 'SFPRO',
+                                ),
+                              )
+                              .animate(delay: 200.ms)
+                              .fadeIn(duration: 600.ms)
+                              .slideY(begin: 0.2, end: 0),
+
+                          SizedBox(height: 24.h),
+
+                          // 4. Chapter Text (Delayed by 300ms)
+                          // if (isVisible)
+                          //   Opacity(
+                          //         opacity: hintOpacity,
+                          //         child: Text.rich(
+                          //           TextSpan(
+                          //             children: [
+                          //               TextSpan(
+                          //                 text: 'You’re in the ',
+                          //                 style: TextStyle(
+                          //                   fontWeight: FontWeight.w500,
+                          //                 ),
+                          //               ),
+                          //               TextSpan(
+                          //                 text: 'pre-wedding ',
+                          //                 style: TextStyle(
+                          //                   fontWeight: FontWeight.w700,
+                          //                 ),
+                          //               ),
+                          //               TextSpan(
+                          //                 text:
+                          //                     'chapter for now. \nThis will change as the celebrations begin',
+                          //                 style: TextStyle(
+                          //                   fontWeight: FontWeight.w500,
+                          //                 ),
+                          //               ),
+                          //             ],
+                          //           ),
+                          //           textAlign: TextAlign.center,
+                          //           style: TextStyle(
+                          //             color: const Color(0xFF06471D),
+
+                          //             fontSize: 14.sp,
+
+                          //             fontFamily: 'SFPRO',
+
+                          //             fontWeight: FontWeight.w700,
+
+                          //             // height: 1.71,
+                          //           ),
+                          //         ),
+                          //       )
+                          //       .animate(delay: 300.ms)
+                          //       .fadeIn(duration: 600.ms)
+                          //       .slideY(begin: 0.1, end: 0),
+                          SizedBox(height: lerpDouble(200.h, 0, t)!),
+
+                          // 5. Scroll Indicator (Delayed by 400ms)
+                          // 5. Scroll Indicator (tappable)
+                          if (isVisible)
+                            Opacity(
+                              opacity: hintOpacity,
+                              child: Material(
+                                color: Colors.transparent,
+                                surfaceTintColor: Colors.transparent,
+                                child: InkWell(
+                                  splashColor: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () {
+                                    // scroll to just below the full intro (nice first reveal)
+                                    final target = (screenHeight - minExtent)
+                                        .clamp(0.0, 999999.0);
+
+                                    if (scrollController.hasClients) {
+                                      scrollController.animateTo(
+                                        target,
+                                        duration: const Duration(
+                                          milliseconds: 900,
+                                        ),
+                                        curve: Curves.easeOutCubic,
+                                      );
+                                    }
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          "Scroll to discover more",
+                                          style: TextStyle(fontSize: 13.sp),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        const Icon(
+                                          Icons.keyboard_arrow_down_rounded,
+                                          size: 22,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ).animate(delay: 400.ms).fadeIn(duration: 600.ms),
+                        ],
                       ),
-                    )
-                    .animate()
-                    .slideX(
-                      begin: -0.45,
-                      end: 0,
-                      duration: 700.ms,
-                      curve: Curves.easeOutCubic,
-                    )
-                    .slideY(
-                      begin: 0.30,
-                      end: 0,
-                      duration: 700.ms,
-                      curve: Curves.easeOutCubic,
-                    )
-                    .fadeIn(duration: 450.ms),
-          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-          // LEFT leaf 2
-          Positioned(
-            left: -20,
-            bottom: -80,
-            child:
-                Transform.translate(
-                      offset: Offset(0, leavesSlideDown),
-                      child: Opacity(
-                        opacity: leavesOpacity,
-                        child: Image.asset(
-                          "assets/images/left_leaf_2.png",
-                          height: 223,
-                          fit: BoxFit.contain,
+            // ---- LEAVES LAYER (plays entrance once + fades out on scroll) ----
+
+            // LEFT leaf 1
+            Positioned(
+              left: 0.w,
+              bottom: 60.h,
+              child: Transform.translate(
+                offset: Offset(0, leavesSlideDown.h), // ✅ scale translate too
+                child: Opacity(
+                  opacity: leavesOpacity,
+                  child:
+                      Image.asset(
+                            "assets/images/left_leaf_1.png",
+                            height: 288.h, // ✅ responsive height
+                            fit: BoxFit.contain,
+                          )
+                          .animate()
+                          // entrance: from bottom-left inside
+                          .slideX(
+                            begin: -0.35,
+                            end: 0,
+                            duration: 650.ms,
+                            curve: Curves.easeOutCubic,
+                          )
+                          .slideY(
+                            begin: 0.25,
+                            end: 0,
+                            duration: 650.ms,
+                            curve: Curves.easeOutCubic,
+                          )
+                          .fadeIn(duration: 450.ms),
+                ),
+              ),
+            ),
+
+            // LEFT leaf 3
+            Positioned(
+              left: (-40).w,
+              bottom: (-30).h,
+              child:
+                  Transform.translate(
+                        offset: Offset(0, leavesSlideDown.h),
+                        child: Opacity(
+                          opacity: leavesOpacity,
+                          child: Image.asset(
+                            "assets/images/left_leaf_3.png",
+                            height: 99.h,
+                            fit: BoxFit.contain,
+                          ),
                         ),
-                      ),
-                    )
-                    .animate()
-                    .slideX(
-                      begin: -0.45,
-                      end: 0,
-                      duration: 700.ms,
-                      curve: Curves.easeOutCubic,
-                    )
-                    .slideY(
-                      begin: 0.30,
-                      end: 0,
-                      duration: 700.ms,
-                      curve: Curves.easeOutCubic,
-                    )
-                    .fadeIn(duration: 450.ms),
-          ),
+                      )
+                      .animate()
+                      .slideX(
+                        begin: -0.45,
+                        end: 0,
+                        duration: 700.ms,
+                        curve: Curves.easeOutCubic,
+                      )
+                      .slideY(
+                        begin: 0.30,
+                        end: 0,
+                        duration: 700.ms,
+                        curve: Curves.easeOutCubic,
+                      )
+                      .fadeIn(duration: 450.ms),
+            ),
 
-          // RIGHT leaf 1 (fix: animate from RIGHT)
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Transform.translate(
-              offset: Offset(0, leavesSlideDown),
-              child: Opacity(
-                opacity: leavesOpacity,
-                child:
-                    Image.asset(
-                          "assets/images/right_leaf_1.png",
-                          height: 363,
-                          fit: BoxFit.contain,
-                        )
-                        .animate()
-                        // entrance: from bottom-right inside
-                        .slideX(
-                          begin: 0.35,
-                          end: 0,
-                          duration: 650.ms,
-                          curve: Curves.easeOutCubic,
-                        )
-                        .slideY(
-                          begin: 0.22,
-                          end: 0,
-                          duration: 650.ms,
-                          curve: Curves.easeOutCubic,
-                        )
-                        .fadeIn(duration: 450.ms),
+            // LEFT leaf 2
+            Positioned(
+              left: (-20).w,
+              bottom: (-80).h,
+              child:
+                  Transform.translate(
+                        offset: Offset(0, leavesSlideDown.h),
+                        child: Opacity(
+                          opacity: leavesOpacity,
+                          child: Image.asset(
+                            "assets/images/left_leaf_2.png",
+                            height: 223.h,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      )
+                      .animate()
+                      .slideX(
+                        begin: -0.45,
+                        end: 0,
+                        duration: 700.ms,
+                        curve: Curves.easeOutCubic,
+                      )
+                      .slideY(
+                        begin: 0.30,
+                        end: 0,
+                        duration: 700.ms,
+                        curve: Curves.easeOutCubic,
+                      )
+                      .fadeIn(duration: 450.ms),
+            ),
+
+            // RIGHT leaf 1 (fix: animate from RIGHT)
+            Positioned(
+              right: 0.w,
+              bottom: 0.h,
+              child: Transform.translate(
+                offset: Offset(0, leavesSlideDown.h),
+                child: Opacity(
+                  opacity: leavesOpacity,
+                  child:
+                      Image.asset(
+                            "assets/images/right_leaf_1.png",
+                            height: 363.h,
+                            fit: BoxFit.contain,
+                          )
+                          .animate()
+                          .slideX(
+                            begin: 0.35,
+                            end: 0,
+                            duration: 650.ms,
+                            curve: Curves.easeOutCubic,
+                          )
+                          .slideY(
+                            begin: 0.22,
+                            end: 0,
+                            duration: 650.ms,
+                            curve: Curves.easeOutCubic,
+                          )
+                          .fadeIn(duration: 450.ms),
+                ),
               ),
             ),
-          ),
 
-          // RIGHT leaf 2
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Transform.translate(
-              offset: Offset(0, leavesSlideDown),
-              child: Opacity(
-                opacity: leavesOpacity,
-                child:
-                    Image.asset(
-                          "assets/images/right_leaf_2.png",
-                          height: 99,
-                          fit: BoxFit.contain,
-                        )
-                        .animate()
-                        .slideX(
-                          begin: 0.45,
-                          end: 0,
-                          duration: 700.ms,
-                          curve: Curves.easeOutCubic,
-                        )
-                        .slideY(
-                          begin: 0.28,
-                          end: 0,
-                          duration: 700.ms,
-                          curve: Curves.easeOutCubic,
-                        )
-                        .fadeIn(duration: 450.ms),
+            // RIGHT leaf 2
+            Positioned(
+              right: 0.w,
+              bottom: 0.h,
+              child: Transform.translate(
+                offset: Offset(0, leavesSlideDown.h),
+                child: Opacity(
+                  opacity: leavesOpacity,
+                  child:
+                      Image.asset(
+                            "assets/images/right_leaf_2.png",
+                            height: 99.h,
+                            fit: BoxFit.contain,
+                          )
+                          .animate()
+                          .slideX(
+                            begin: 0.45,
+                            end: 0,
+                            duration: 700.ms,
+                            curve: Curves.easeOutCubic,
+                          )
+                          .slideY(
+                            begin: 0.28,
+                            end: 0,
+                            duration: 700.ms,
+                            curve: Curves.easeOutCubic,
+                          )
+                          .fadeIn(duration: 450.ms),
+                ),
               ),
             ),
-          ),
 
-          // RIGHT leaf 3
-          Positioned(
-            right: 70,
-            bottom: 0,
-            child: Transform.translate(
-              offset: Offset(0, leavesSlideDown),
-              child: Opacity(
-                opacity: leavesOpacity,
-                child:
-                    Image.asset(
-                          "assets/images/right_leaf_3.png",
-                          height: 99,
-                          fit: BoxFit.contain,
-                        )
-                        .animate()
-                        .slideX(
-                          begin: 0.45,
-                          end: 0,
-                          duration: 700.ms,
-                          curve: Curves.easeOutCubic,
-                        )
-                        .slideY(
-                          begin: 0.28,
-                          end: 0,
-                          duration: 700.ms,
-                          curve: Curves.easeOutCubic,
-                        )
-                        .fadeIn(duration: 450.ms),
+            // RIGHT leaf 3
+            Positioned(
+              right: 70.w,
+              bottom: 0.h,
+              child: Transform.translate(
+                offset: Offset(0, leavesSlideDown.h),
+                child: Opacity(
+                  opacity: leavesOpacity,
+                  child:
+                      Image.asset(
+                            "assets/images/right_leaf_3.png",
+                            height: 99.h,
+                            fit: BoxFit.contain,
+                          )
+                          .animate()
+                          .slideX(
+                            begin: 0.45,
+                            end: 0,
+                            duration: 700.ms,
+                            curve: Curves.easeOutCubic,
+                          )
+                          .slideY(
+                            begin: 0.28,
+                            end: 0,
+                            duration: 700.ms,
+                            curve: Curves.easeOutCubic,
+                          )
+                          .fadeIn(duration: 450.ms),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _DashboardIntroFullScreen extends StatelessWidget {
-  const _DashboardIntroFullScreen({
-    required this.coupleTitle,
-    required this.guestName,
-    required this.introProgress,
-  });
+const Set<String> kAdminPhoneNumbers = {
+  '+971585343223',
+  '+916282745946',
+  '+971559533272',
+  '+971561012727',
+  '+916282745945'
+};
 
-  final String coupleTitle;
-  final String guestName;
-  final ValueNotifier<double> introProgress;
+class SettingsMenu extends StatelessWidget {
+  const SettingsMenu({super.key});
+
+  bool _isAdminUser() {
+    final user = FirebaseAuth.instance.currentUser;
+    final phone = user?.phoneNumber;
+    if (phone == null) return false;
+    return kAdminPhoneNumbers.contains(phone);
+  }
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF06471D);
+    final isAdmin = _isAdminUser();
 
-    return ValueListenableBuilder<double>(
-      valueListenable: introProgress,
-      builder: (context, p, _) {
-        // Leaves/hint fade out as user scrolls down
-        final leavesOpacity = (1.0 - (p * 1.15)).clamp(0.0, 1.0);
-        final leavesTranslateY = 22 * p;
-        final hintOpacity = (1.0 - (p * 1.4)).clamp(0.0, 1.0);
+    return PopupMenuButton<_SettingsAction>(
+          tooltip: 'Settings',
+          offset: const Offset(0, 42),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          color: Colors.white,
+          elevation: 10,
+          onSelected: (value) async {
+            switch (value) {
+              case _SettingsAction.admin:
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const AdminHomeScreen(
+                      weddingId: 'u7MmJS2IEIjOGax9E6md',
+                      weddingName: 'Momina & Nizaj',
+                    ),
+                  ),
+                );
+                break;
 
-        return Stack(
-              children: [
-                // Full-screen base (white)
-                Positioned.fill(child: Container(color: Colors.white)),
+              case _SettingsAction.logout:
+                final confirmed = await _confirmLogout(context);
+                if (confirmed) {
+                  await FirebaseAuth.instance.signOut();
+                }
+                break;
+            }
+          },
+          itemBuilder: (context) {
+            final items = <PopupMenuEntry<_SettingsAction>>[];
 
-                // Main content column
-                Positioned.fill(
-                  child: Column(
-                    children: [
-                      // Top floral header (fixed height like before)
-                      SizedBox(
-                        height: 315,
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: Image.asset(
-                                "assets/images/vector_header.png",
-                                alignment: Alignment.topCenter,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            Positioned.fill(
-                              child: Align(
-                                alignment: Alignment.bottomCenter,
-                                child: ClipPath(
-                                  clipper: _TopWaveClipper(),
-                                  child: Container(
-                                    height: 80,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Align(
-                              alignment: Alignment.center,
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 18),
-                                child: _ScallopBadge(
-                                  text: coupleTitle,
-                                  color: const Color(0xFF8B2B57),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+            if (isAdmin) {
+              items.add(
+                PopupMenuItem(
+                  value: _SettingsAction.admin,
+                  child: Row(
+                    children: const [
+                      Icon(
+                        Icons.admin_panel_settings,
+                        size: 18,
+                        color: Colors.black87,
                       ),
-
-                      // Center area (takes remaining space)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // const SizedBox(height: 10),
-                            const Text(
-                              "Hello",
-                              style: TextStyle(
-                                color: green,
-                                fontSize: 14,
-                                fontFamily: 'SFPRO',
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              guestName,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: green,
-                                fontSize: 44,
-                                fontFamily: 'Montage',
-                                fontWeight: FontWeight.w400,
-                                height: 1.0,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              "We’re so happy you’re here.",
-                              style: TextStyle(
-                                color: green,
-                                fontSize: 14,
-                                fontFamily: 'SFPRO',
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              "You’re in the pre-wedding chapter for now.\n"
-                              "This will change as the celebrations begin",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: green.withOpacity(0.95),
-                                fontSize: 15,
-                                fontFamily: 'SFPRO',
-                                fontWeight: FontWeight.w600,
-                                height: 1.55,
-                              ),
-                            ),
-                            const SizedBox(height: 26),
-
-                            // Scroll hint (sits above leaves)
-                            Opacity(
-                              opacity: hintOpacity,
-                              child: Column(
-                                children: [
-                                  Text(
-                                    "Scroll to discover more",
-                                    style: TextStyle(
-                                      color: Colors.black.withOpacity(0.68),
-                                      fontSize: 13,
-                                      fontFamily: 'SFPRO',
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Icon(
-                                    Icons.keyboard_arrow_down_rounded,
-                                    size: 22,
-                                    color: Colors.black.withOpacity(0.55),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 0), // room above leaves
-                          ],
+                      SizedBox(width: 10),
+                      Text(
+                        'Admin',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                 ),
+              );
+              items.add(const PopupMenuDivider());
+            }
 
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 110,
-
-                  child: Align(
-                    alignment: Alignment.bottomLeft,
-                    child: Transform.translate(
-                      offset: Offset(0, leavesTranslateY),
-                      child: Opacity(
-                        opacity: leavesOpacity,
-                        child: Container(
-                          child: Image.asset(
-                            "assets/images/left_leaf_1.png",
-                            height: 288,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
+            items.add(
+              PopupMenuItem(
+                value: _SettingsAction.logout,
+                child: Row(
+                  children: const [
+                    Icon(Icons.logout, size: 18, color: Colors.redAccent),
+                    SizedBox(width: 10),
+                    Text(
+                      'Logout',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ),
+                  ],
                 ),
+              ),
+            );
 
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: -50,
+            return items;
+          },
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.25),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.settings, color: Colors.white, size: 22),
+          ),
+        )
+        .animate()
+        .fadeIn(duration: 350.ms, curve: Curves.easeOut)
+        .scale(
+          begin: const Offset(0.9, 0.9),
+          end: const Offset(1, 1),
+          duration: 420.ms,
+          curve: Curves.easeOutBack,
+        );
+  }
 
-                  child: Align(
-                    alignment: Alignment.bottomLeft,
-                    child: Transform.translate(
-                      offset: Offset(0, leavesTranslateY),
-                      child: Opacity(
-                        opacity: leavesOpacity,
-                        child: Container(
-                          child: Image.asset(
-                            "assets/images/left_leaf_2.png",
-                            height: 223,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+  Future<bool> _confirmLogout(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text('Logout'),
+              content: const Text('Are you sure you want to logout?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
                 ),
-
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: Transform.translate(
-                      offset: Offset(0, leavesTranslateY),
-                      child: Opacity(
-                        opacity: leavesOpacity,
-                        child: Container(
-                          child: Image.asset(
-                            "assets/images/right_leaf_1.png",
-                            height: 363,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                    ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
                   ),
-                ),
-
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: Transform.translate(
-                      offset: Offset(0, leavesTranslateY),
-                      child: Opacity(
-                        opacity: leavesOpacity,
-                        child: Container(
-                          child: Image.asset(
-                            "assets/images/right_leaf_2.png",
-                            height: 99,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                    ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text(
+                    'Logout',
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ],
-            )
-            // Initial entrance (premium)
-            .animate()
-            .fadeIn(duration: 450.ms, curve: Curves.easeOutCubic)
-            .slideY(
-              begin: 0.02,
-              end: 0,
-              duration: 650.ms,
-              curve: Curves.easeOutCubic,
             );
-      },
-    );
+          },
+        ) ??
+        false;
   }
 }
+
+enum _SettingsAction { logout, admin }
 
 class TestClipper extends CustomClipper<Path> {
   final bool clipTop;
@@ -2593,4 +1903,131 @@ class TestClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+class BottomTripleWaveClipper extends CustomClipper<Path> {
+  const BottomTripleWaveClipper({
+    this.amplitude = 22, // wave height
+    this.baseline = 24, // how far up from bottom the wave sits
+  });
+
+  final double amplitude;
+  final double baseline;
+
+  @override
+  Path getClip(Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final y = h - baseline;
+
+    final path = Path()..lineTo(0, y);
+
+    // 3 waves across the width => 6 quadratic segments (up/down)
+    final seg = w / 6;
+
+    path.quadraticBezierTo(seg * 1, y - amplitude, seg * 2, y);
+    path.quadraticBezierTo(seg * 3, y + amplitude, seg * 4, y);
+    path.quadraticBezierTo(seg * 5, y - amplitude, seg * 6, y);
+
+    // close shape
+    path.lineTo(w, 0);
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant BottomTripleWaveClipper oldClipper) {
+    return oldClipper.amplitude != amplitude || oldClipper.baseline != baseline;
+  }
+}
+
+class InverseTestClipper extends CustomClipper<Path> {
+  final bool clipTop;
+  final bool clipBottom;
+  final double waveHeight;
+  final double amplitude;
+
+  const InverseTestClipper({
+    this.clipTop = false,
+    this.clipBottom = true,
+    this.waveHeight = 20,
+    this.amplitude = 15,
+  });
+
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    final segmentWidth = size.width / 3;
+
+    // Start at top-left
+    path.moveTo(0, 0);
+
+    // Top edge
+    if (clipTop) {
+      path.lineTo(0, waveHeight);
+      for (int i = 0; i < 3; i++) {
+        final startX = i * segmentWidth;
+        path.quadraticBezierTo(
+          startX + segmentWidth / 4,
+          waveHeight + amplitude, // Start by going down
+          startX + segmentWidth / 2,
+          waveHeight,
+        );
+        path.quadraticBezierTo(
+          startX + 3 * segmentWidth / 4,
+          waveHeight - amplitude,
+          startX + segmentWidth,
+          waveHeight,
+        );
+      }
+    } else {
+      path.lineTo(size.width, 0);
+    }
+
+    // Right edge down
+    path.lineTo(size.width, size.height - (clipBottom ? waveHeight : 0));
+
+    // ---- BOTTOM (Inverted Pattern) ----
+    if (clipBottom) {
+      final baseY = size.height - waveHeight;
+
+      // Draw from right to left
+      for (int i = 2; i >= 0; i--) {
+        final startX = i * segmentWidth;
+
+        // To make the LEFT-most wave go down, the RIGHT-most wave
+        // in this reverse loop must follow the pattern.
+        path.quadraticBezierTo(
+          startX + 3 * segmentWidth / 4,
+          baseY - amplitude, // Peak up
+          startX + segmentWidth / 2,
+          baseY,
+        );
+
+        path.quadraticBezierTo(
+          startX + segmentWidth / 4,
+          baseY + amplitude, // Dip down (This hits the left side)
+          startX,
+          baseY,
+        );
+      }
+    } else {
+      path.lineTo(0, size.height);
+    }
+
+    path.lineTo(0, 0);
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant InverseTestClipper oldClipper) {
+    return oldClipper.clipTop != clipTop ||
+        oldClipper.clipBottom != clipBottom ||
+        oldClipper.waveHeight != waveHeight ||
+        oldClipper.amplitude != amplitude;
+  }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class ToGoCountdownPill extends StatefulWidget {
   const ToGoCountdownPill({
@@ -44,9 +45,9 @@ class _ToGoCountdownPillState extends State<ToGoCountdownPill> {
     final hours = (totalHours % 24);
 
     return Container(
-      height: 78,
+      // height: 78,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18.r),
         color: widget.primaryColor, // base glass
       ),
       child: Stack(
@@ -54,10 +55,10 @@ class _ToGoCountdownPillState extends State<ToGoCountdownPill> {
           // back left darker slab (like screenshot)
           Positioned.fill(
             left: 0,
-            right: 110,
+            right: 110.w,
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.r),
                 color: widget.primaryColor,
               ),
             ),
@@ -66,28 +67,28 @@ class _ToGoCountdownPillState extends State<ToGoCountdownPill> {
           // main pill content
           Row(
             children: [
-              const SizedBox(width: 13),
-              const Text(
+               SizedBox(width: 13.w),
+               Text(
                 "To go",
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
+                  fontSize: 12.sp,
                   fontFamily: 'SFPRO',
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 13),
+               SizedBox(width: 13.w),
 
               // days block
               Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                   color: widget.secondaryColor,
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 14,
+                  padding:  EdgeInsets.symmetric(
+                    horizontal: 18.w,
+                    vertical: 14.w,
                   ),
                   child: Row(
                     children: [
@@ -95,8 +96,8 @@ class _ToGoCountdownPillState extends State<ToGoCountdownPill> {
                       // divider
                       Container(
                         width: 1,
-                        height: 46,
-                        margin: const EdgeInsets.symmetric(horizontal: 18),
+                        height: 46.h,
+                        margin:  EdgeInsets.symmetric(horizontal: 18.w),
                         color: Colors.white.withOpacity(0.35),
                       ),
 
@@ -130,20 +131,20 @@ class _BigValueBlock extends StatelessWidget {
       children: [
         Text(
           value,
-          style: const TextStyle(
+          style:  TextStyle(
             color: Colors.white,
-            fontSize: 30,
+            fontSize: 30.sp,
             height: 0.95,
             fontFamily: 'SFPRO',
             fontWeight: FontWeight.w400,
           ),
         ),
-        const SizedBox(height: 2),
+         SizedBox(height: 2.h),
         Text(
           label,
-          style: const TextStyle(
+          style:  TextStyle(
             color: Colors.white,
-            fontSize: 12,
+            fontSize: 12.sp,
             fontFamily: 'SFPRO',
             fontWeight: FontWeight.w500,
           ),

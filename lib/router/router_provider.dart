@@ -1,28 +1,26 @@
 import 'dart:async';
-import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
+import 'package:loading_indicator/loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:upgrader/upgrader.dart';
+
 import 'package:wedding_invite/feature/auth/screens/intro_screen.dart';
 import 'package:wedding_invite/feature/auth/screens/login_screen.dart';
 import 'package:wedding_invite/feature/auth/screens/onboarding_screen.dart';
 import 'package:wedding_invite/feature/auth/screens/success_screen.dart';
-import 'package:wedding_invite/feature/auth/screens/user_details_screen.dart';
-import 'package:wedding_invite/feature/guest_list/screens/master_guest_list_screen.dart';
-import 'package:wedding_invite/feature/invite/screens/invite_screen.dart';
-import 'package:wedding_invite/feature/profile/screens/profile_screen.dart';
 import 'package:wedding_invite/feature/wedding_admin/domain/event_model.dart';
 import 'package:wedding_invite/feature/wedding_admin/event_details/screens/event_details_screen.dart';
 import 'package:wedding_invite/feature/wedding_admin/presentation/add_event_screen.dart';
-import 'package:wedding_invite/feature/wedding_admin/presentation/admin_home_screen.dart';
 import 'package:wedding_invite/feature/wedding_admin/presentation/create_wedding_screen.dart';
 import 'package:wedding_invite/feature/wedding_admin/presentation/wedding_details_screen.dart';
-import 'package:wedding_invite/main_screen.dart';
+import 'package:wedding_invite/version_1/admin/screens/admin_screen.dart';
 import 'package:wedding_invite/version_1/dashbaord/screens/user_dashborad_screen.dart';
+import 'package:wedding_invite/version_2/screens/wedding_dashboard_screen.dart';
 
 // --- Shared State Providers (from your code) ---
 
@@ -34,12 +32,7 @@ final authStateProvider = StreamProvider<User?>(
   (ref) => FirebaseAuth.instance.authStateChanges(),
 );
 
-// 2) Has seen onboarding (placeholder, always true for now)
-// final hasSeenOnboardingProvider = FutureProvider<bool>((ref) async {
-//   // In a real app, this would use SharedPreferences
-//   await Future.delayed(const Duration(milliseconds: 100));
-//   return true;
-// });
+final isRsvpedForThisWeddingProvider = StateProvider<bool>((_) => false);
 
 // 3) User doc (profile gate) – placeholder for data check
 final userDataProvider =
@@ -76,90 +69,82 @@ class GoRouterRefreshStream extends ChangeNotifier {
 }
 
 final goRouterProvider = Provider<GoRouter>((ref) {
+  // Watch all necessary states
   final authAsync = ref.watch(authStateProvider);
-  final user = authAsync.asData?.value;
-  // final uid = user?.uid;
-
-  //-----init screen------
-  final hasSeenInitAsync = ref.watch(hasSeenInitProvider);
-  final hasSeenInit = hasSeenInitAsync.asData?.value ?? false;
-
-  final hasSeenOnboardingAsync = ref.watch(hasSeenOnboardingProvider);
-  final hasSeenOnboarding = hasSeenOnboardingAsync.asData?.value ?? false;
-  // final hasSeenOnboarding =  false;
-
-  final justLoggedIn = ref.watch(justLoggedInProvider); // 👈 add this
-
-  // Placeholder: Simulate UserDoc check. Replace with your actual logic if needed.
-  // We'll skip complex userDoc logic for this core implementation.
-  // final userDocExists = true;
-  // final userDoc = uid != null
-  //     ? ref.watch(userDataProvider(uid)).asData?.value
-  //     : null;
+  final initAsync = ref.watch(hasSeenInitProvider);
+  final onboardingAsync = ref.watch(hasSeenOnboardingProvider);
+  final isGuest = ref.watch(isGuestProvider);
+  // final isRsvpedForThisWedding =
+  //   ref.read(isRsvpedForThisWeddingProvider);
 
   return GoRouter(
-    navigatorKey: rootNavigatorKey,
-    initialLocation: '/', // Start at Login
+    initialLocation: '/splash', // Start at splash to wait for data
     debugLogDiagnostics: false,
     refreshListenable: GoRouterRefreshStream(
       FirebaseAuth.instance.authStateChanges(),
     ),
+
     redirect: (context, state) {
-      final loc = state.uri.toString();
-      log('loc : $loc');
-      final onOnboarding = loc.startsWith('/onboarding');
-      final onLogin = loc == '/';
-      final onUserDetails = loc.startsWith('/user-details');
-      final onSuccess = loc.startsWith('/success');
-      final onInit = loc.startsWith('/init');
+      // 1. Log the Loading States
+      print('--- ROUTER REDIRECT ---');
+      print(
+        'Loading States -> Auth: ${authAsync.isLoading}, Init: ${initAsync.isLoading}, Onboard: ${onboardingAsync.isLoading}',
+      );
 
-      log('on login ? $onLogin , onboarding ? $onOnboarding');
+      if (authAsync.isLoading ||
+          initAsync.isLoading ||
+          onboardingAsync.isLoading) {
+        print('Redirecting to: /splash (Waiting for data)');
+        return '/splash';
+      }
 
-      // // 1) First-launch → onboarding
-      // if (!hasSeenOnboarding && !onOnboarding) {
-      //   return '/onboarding';
+      // 2. Log the values
+      final user = authAsync.value;
+      final isGuest = ref.read(isGuestProvider); // Log this!
+      final hasSeenInit = initAsync.value ?? false;
+      final hasSeenOnboarding = onboardingAsync.value ?? false;
+      final loc = state.uri.path;
+
+      final isRsvpedForThisWedding = ref.read(isRsvpedForThisWeddingProvider);
+
+      print(
+        'State Values -> User: ${user?.uid}, isGuest: $isGuest, hasSeenInit: $hasSeenInit, hasSeenOnboarding: $hasSeenOnboarding',
+      );
+      print('Current Loc: $loc');
+
+      // 3. Log the decision logic
+      if (!hasSeenInit) {
+        final target = loc == '/init' ? null : '/init';
+        print('Decision: Intro not seen. Target: $target');
+        return target;
+      }
+
+      // if (!hasSeenOnboarding) {
+      //   final target = loc == '/onboarding' ? null : '/onboarding';
+      //   print('Decision: Onboarding not seen. Target: $target');
+      //   return target;
       // }
 
-      // 0) First launch flow (2-step)
-      if (!hasSeenInit && !onInit) {
-        return '/init';
-      }
-      if (hasSeenInit && !hasSeenOnboarding && !onOnboarding) {
-        return '/onboarding';
+      // 3. Wedding-specific onboarding ONLY
+      // if (isRsvpedForThisWedding && !hasSeenOnboarding) {
+      //   return loc == '/onboarding' ? null : '/onboarding';
+      // }
+
+      if (user == null && !isGuest) {
+        final target = loc == '/' ? null : '/';
+        print('Decision: No User & Not Guest. Target: $target');
+        return target;
       }
 
-      // 2) Not logged in
-      if (user == null) {
-        if (onOnboarding) return null; // Allow onboarding
-        if (onLogin) return null; // Allow login
-        return '/'; // Force login
-      }
-
-      if (onSuccess) {
-        return null;
-      }
-
-      // 4) Logged in & we're on "/" (login)
-      if (onLogin) {
-        // If this navigation is right after login, go to /success instead of /home
-        if (justLoggedIn) {
-          return '/success';
-        }
-        // Normal logged-in navigation → home
+      // This is where you might be stuck
+      if ((loc == '/' || loc == '/splash') && (user != null || isGuest)) {
+        print(
+          'Decision: Authenticated/Guest found on Login/Splash. Target: /home',
+        );
         return '/home';
       }
 
-      // 5) Leave /user-details alone, SuccessScreen will decide when to go there.
-      // If you want to prevent logged-in users from manually going to onboarding:
-      if (onOnboarding) {
-        return '/home';
-      }
-
-      // // 4) Logged in: keep them off login/onboarding/user-details
-      // if (onLogin || onOnboarding) {
-      //   return '/home';
-      // }
-
+      print('Decision: No redirect needed (returning null)');
       return null;
     },
 
@@ -168,6 +153,33 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => OnboardingScreen(),
+      ),
+
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 100,
+                  child: LoadingIndicator(
+                    indicatorType:
+                        Indicator.ballScaleMultiple, // Soft pulsing circles
+                    colors: [
+                      const Color(0xFF06471D), // Your deep green
+                      const Color(0xFF8B2B57), // Your badge pink
+                    ],
+                    strokeWidth: 2,
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
       ),
 
       GoRoute(
@@ -201,8 +213,23 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       GoRoute(
         path: '/home',
-        pageBuilder: (c, s) =>
-            const NoTransitionPage(child: UserDashboardScreen()),
+        pageBuilder: (c, s) => NoTransitionPage(
+          child: UpgradeAlert(
+            dialogStyle: UpgradeDialogStyle.cupertino, // iOS-style dialog
+
+            upgrader: Upgrader(
+              countryCode: 'in',
+              debugLogging: false,
+              debugDisplayAlways: false, // for testing – show every time
+              // remove minAppVersion for now, keep it simple
+            ),
+
+            showIgnore: false,
+            showLater: false,
+            child: UserDashboardScreen(),
+            // child: WeddingDashboardScreen(),
+          ),
+        ),
         routes: [
           // Deep sub-routes mounted under /home if you prefer
         ],
@@ -257,7 +284,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       // Main application screen (Home is the AdminHomeScreen)
       // GoRoute(
-      //   path: '/home',
+      //   path: '/admin',
       //   builder: (context, state) => const AdminHomeScreen(),
       // ),
       GoRoute(

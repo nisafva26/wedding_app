@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 class GiftCard extends StatelessWidget {
   final Color color;
-  final IconData icon;
+  final String icon;
   final String title;
   final String heroTag;
   final String description;
@@ -15,7 +16,8 @@ class GiftCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.onTap,
-    this.showArrow = false, required this.heroTag,
+    this.showArrow = false,
+    required this.heroTag,
   });
 
   @override
@@ -25,7 +27,7 @@ class GiftCard extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(29, 20, 16, 34),
+        padding: EdgeInsets.fromLTRB(29, 20, 16, 34),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(16),
@@ -47,8 +49,21 @@ class GiftCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // Top-Left Icon
-                    Icon(icon, color: Colors.white, size: 36),
-                
+                    Transform.translate(
+                      offset: Offset(title == 'Your Presence' ? -20 : 0, 0),
+                      child: title == 'Your Presence'
+                          ? Container(
+                              height: 94,
+                              width: 94,
+                              child: Lottie.asset(icon),
+                            )
+                          : Container(
+                              height: 58,
+                              width: 58,
+                              child: Lottie.asset(icon),
+                            ),
+                    ),
+
                     // Top-Right Arrow (Only if interactive)
                     if (showArrow)
                       const Icon(
@@ -81,7 +96,7 @@ class GiftCard extends StatelessWidget {
                 fontSize: 14,
                 height: 1.4,
                 fontFamily: 'SFPRO',
-                fontWeight: FontWeight.w400,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],

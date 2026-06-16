@@ -6,8 +6,11 @@ final firestoreProvider = Provider<FirebaseFirestore>((ref) {
   return FirebaseFirestore.instance;
 });
 
+// y31tWAjksyki2Arvn4EC
+
 // For now: single wedding hardcode (fast ship)
-const kActiveWeddingId = "u7MmJS2IEIjOGax9E6md";
+// const kActiveWeddingId = "u7MmJS2IEIjOGax9E6md";
+const kActiveWeddingId = "y31tWAjksyki2Arvn4EC";
 final activeWeddingIdProvider = Provider<String>((ref) => kActiveWeddingId);
 
 // You MUST expose the logged in user's phone somewhere.

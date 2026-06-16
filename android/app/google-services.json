@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "890258382242-15fpg7oqrbk5qtg1rl6nmitbteh2dmgl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.wedding_invite",
+            "certificate_hash": "fd32a96d0c697bd31b7c4c489b1ebf02bef3229e"
+          }
+        },
+        {
           "client_id": "890258382242-tl3qkkhivjft5ba7prs1hfvl5mh5jkfk.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -31,10 +39,106 @@
               "client_type": 3
             },
             {
-              "client_id": "890258382242-ha6bdkdgo6u271iutvsr2f1hfnorih82.apps.googleusercontent.com",
+              "client_id": "890258382242-an4e83t7ta0hd0u2mg7gais2656s486b.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.fogtheagency.weddingInvite"
+                "bundle_id": "com.fogtheagency.otl"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:890258382242:android:536b2beabd31dbdf5f66fb",
+        "android_client_info": {
+          "package_name": "com.example.wedding_rsvp_web"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "890258382242-tl3qkkhivjft5ba7prs1hfvl5mh5jkfk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgwiqV9JmqOGlRyd6qa12372fPlzxr1ek"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "890258382242-tl3qkkhivjft5ba7prs1hfvl5mh5jkfk.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "890258382242-an4e83t7ta0hd0u2mg7gais2656s486b.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.fogtheagency.otl"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:890258382242:android:f95f9257bdf713cf5f66fb",
+        "android_client_info": {
+          "package_name": "com.fogtheagency.otl"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "890258382242-1l74k37v6ejdcp2im4b4a0u80914v8q9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fogtheagency.otl",
+            "certificate_hash": "a30f5bcbf87058518cb1986f8111f3ad80650ab1"
+          }
+        },
+        {
+          "client_id": "890258382242-e3m5ui1a8mep776r4nmcofp96j339ata.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fogtheagency.otl",
+            "certificate_hash": "fd32a96d0c697bd31b7c4c489b1ebf02bef3229e"
+          }
+        },
+        {
+          "client_id": "890258382242-ijcanlc5kah2ojq3r3018fcavafbem96.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fogtheagency.otl",
+            "certificate_hash": "a7087d8db11d732acfcd582c22ddafda635352c4"
+          }
+        },
+        {
+          "client_id": "890258382242-tl3qkkhivjft5ba7prs1hfvl5mh5jkfk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgwiqV9JmqOGlRyd6qa12372fPlzxr1ek"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "890258382242-tl3qkkhivjft5ba7prs1hfvl5mh5jkfk.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "890258382242-an4e83t7ta0hd0u2mg7gais2656s486b.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.fogtheagency.otl"
               }
             }
           ]
